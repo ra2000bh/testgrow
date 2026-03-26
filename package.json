@@ -9,9 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^14.6.1",
+    "@twa-dev/sdk": "^8.0.2",
+    "mongoose": "^9.3.3",
     "next": "16.2.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

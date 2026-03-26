@@ -1,65 +1,73 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { getTelegramId } from "@/lib/client";
+import { isValidStellarPublicKey } from "@/lib/stellar";
+import { ErrorCard, SpinnerLabel } from "@/components/ui";
+
+export default function HomePage() {
+  const [publicKey, setPublicKey] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const onSubmit = async () => {
+    setError("");
+    if (!isValidStellarPublicKey(publicKey.trim())) {
+      setError("Please enter a valid Stellar public key (G... 56 chars).");
+      return;
+    }
+    const telegramId = getTelegramId();
+    if (!telegramId) {
+      setError("Unable to read your Telegram user ID. Please reopen from Telegram.");
+      return;
+    }
+
+    setLoading(true);
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId, publicKey: publicKey.trim() }),
+    });
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) return setError(data.message || "Registration failed.");
+    if (data.isVerified) router.push("/dashboard");
+    else router.push("/verify");
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <section className="space-y-5">
+      <div className="card space-y-3 text-center">
+        <h1 className="bg-gradient-to-r from-[#6A0DAD] to-[#C0C0C0] bg-clip-text text-4xl font-black text-transparent">
+          StellarGrow
+        </h1>
+        <p className="text-base leading-relaxed text-[#E8E8E8]">
+          Discover how tokenization powers the next generation of business growth.
+        </p>
+      </div>
+      <div className="card space-y-4">
+        <label className="text-base font-bold">Enter your Stellar Public Key (starts with G...)</label>
+        <input
+          className="w-full rounded-xl border border-[#4d4d66] bg-[#0f0f1a] px-4 py-4 text-base"
+          value={publicKey}
+          onChange={(e) => setPublicKey(e.target.value)}
+          placeholder="G..."
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <button className="btn-primary" onClick={onSubmit} type="button" disabled={loading}>
+          Continue
+        </button>
+      </div>
+      <div className="card">
+        <p className="text-base text-[#A0A0B0]">
+          Why do we need your public key? We use it to verify wallet ownership and track your GROW
+          tokens.
+        </p>
+      </div>
+      {loading ? <SpinnerLabel text="Checking Stellar network..." /> : null}
+      {error ? <ErrorCard text={error} /> : null}
+    </section>
   );
 }

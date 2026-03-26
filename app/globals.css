@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0f0f1a;
+  --foreground: #f0f0f0;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  background: linear-gradient(180deg, #0f0f1a 0%, #12122a 100%);
+}
+
+.card {
+  background: #1a1a2e;
+  border: 1px solid #3a3a52;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.btn-primary {
+  background: linear-gradient(120deg, #4b0082 0%, #6a0dad 100%);
+  color: #f0f0f0;
+  border-radius: 14px;
+  min-height: 48px;
+  font-weight: 700;
+  width: 100%;
+}
+
+.btn-outline {
+  border: 1px solid #c0c0c0;
+  color: #e8e8e8;
+  border-radius: 14px;
+  min-height: 48px;
+  font-weight: 700;
+  width: 100%;
 }
