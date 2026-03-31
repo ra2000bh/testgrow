@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI ?? "";
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME ?? "stellargrow";
 
 declare global {
   var mongooseCache:
@@ -25,7 +26,7 @@ export async function connectToDatabase() {
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI, {
-      dbName: "stellargrow",
+      dbName: MONGODB_DB_NAME,
     });
   }
 
