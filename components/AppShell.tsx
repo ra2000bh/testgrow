@@ -1,19 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { useEffect } from "react";
-import { getTelegramUser, initTelegramWebApp, setupTelegramBackButton } from "@/lib/telegram";
-
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/companies", label: "Companies" },
-  { href: "/rewards", label: "Rewards" },
-  { href: "/trustlines", label: "Trustlines" },
-];
+import { useEffect, useState } from "react";
+import { getTelegramId, syncSessionCookie } from "@/lib/client";
+import { initTelegramWebApp, setupTelegramBackButton } from "@/lib/telegram";
+import { BottomNav } from "@/components/BottomNav";
+import { PageWrapper } from "@/components/PageWrapper";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
     initTelegramWebApp();
@@ -23,32 +19,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setupTelegramBackButton(pathname);
   }, [pathname]);
 
-  const user = getTelegramUser();
+  useEffect(() => {
+    syncSessionCookie();
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      const id = getTelegramId();
+      if (!id) {
+        if (!cancelled) setVerified(false);
+        return;
+      }
+      fetch(`/api/user?telegramId=${encodeURIComponent(id)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!cancelled) setVerified(Boolean(data?.isVerified));
+        })
+        .catch(() => {
+          if (!cancelled) setVerified(false);
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [pathname]);
 
   return (
-    <div className="app-shell mx-auto flex min-h-dvh w-full max-w-[480px] flex-col pb-24">
-      <header className="px-4 pb-2 pt-4">
-        <p className="text-sm text-[#A0A0B0]">Telegram: @{user?.username ?? "guest"}</p>
-      </header>
-      <main className="flex-1 px-4 pb-4">{children}</main>
-      <nav className="fixed bottom-0 left-1/2 w-full max-w-[480px] -translate-x-1/2 border-t border-[#353550] bg-[#141428] px-2 py-2">
-        <div className="grid grid-cols-4 gap-2">
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`rounded-xl px-2 py-3 text-center text-sm font-bold ${
-                  active ? "bg-[#6A0DAD] text-white" : "bg-[#1A1A2E] text-[#E8E8E8]"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+    <div className="sg-app-shell mx-auto flex min-h-dvh w-full max-w-[480px] flex-col">
+      <main className="sg-main flex min-h-0 flex-1 flex-col">
+        <PageWrapper key={pathname}>{children}</PageWrapper>
+      </main>
+      <BottomNav verified={verified} />
     </div>
   );
 }

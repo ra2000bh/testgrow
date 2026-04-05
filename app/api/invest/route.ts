@@ -23,6 +23,12 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ success: false, message: "User not found." }, { status: 404 });
     }
+    if (!user.isVerified) {
+      return NextResponse.json(
+        { success: false, message: "Wallet not verified" },
+        { status: 403 },
+      );
+    }
     if (user.growBalance < amount) {
       return NextResponse.json({ success: false, message: "Insufficient GROW balance." }, { status: 400 });
     }

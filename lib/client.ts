@@ -10,3 +10,10 @@ export function getTelegramId() {
   }
   return localStorage.getItem("stellargrow_telegram_id") || "";
 }
+
+export function syncSessionCookie() {
+  if (typeof document === "undefined") return;
+  const id = getTelegramId();
+  if (!id) return;
+  document.cookie = `stellargrow_telegram_id=${encodeURIComponent(id)}; path=/; max-age=31536000; SameSite=Lax`;
+}

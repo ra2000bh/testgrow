@@ -20,6 +20,23 @@ export function formatAddress(address: string) {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
+export async function accountHasTrustline(
+  publicKey: string,
+  assetCode: string,
+  issuerPublicKey: string,
+): Promise<boolean> {
+  try {
+    const account = await server.loadAccount(publicKey);
+    return account.balances.some((b) => {
+      if (b.asset_type === "native") return false;
+      if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
+      return b.asset_code === assetCode && b.asset_issuer === issuerPublicKey;
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function findVerificationPayment(params: {
   sourcePublicKey: string;
   memoWalletPublicKey: string;

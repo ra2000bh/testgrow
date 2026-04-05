@@ -1,71 +1,226 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import gsap from "gsap";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getTelegramId } from "@/lib/client";
 import { companies } from "@/lib/companies";
-import { ErrorCard, ProgressBar, SpinnerLabel } from "@/components/ui";
+import { computeBatchProgress } from "@/lib/rewards";
+import { ErrorCard } from "@/components/ErrorCard";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import {
+  animateCountUp,
+  animateListCards,
+  animateLoadingPulse,
+  killTweensOf,
+  prefersReducedMotion,
+} from "@/lib/animations";
+import { CheckCircle2, Download } from "lucide-react";
+import type { Investment } from "@/models/User";
 
-type Investment = {
-  companyId: string;
-  companyName: string;
-  assetCode: string;
-  accumulatedReward: number;
-  lastRewardAt: string;
-};
+type Row = Investment & { accumulatedReward: number };
+
+function InlineLoadingDot() {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const tl = animateLoadingPulse(ref.current);
+    return () => {
+      tl?.kill();
+    };
+  }, []);
+  return (
+    <span
+      ref={ref}
+      className="sg-will-animate inline-block h-2 w-2 rounded-[var(--radius-full)] bg-[var(--primary-green)]"
+      aria-hidden
+    />
+  );
+}
+
+function RewardFigure({ value, trackId }: { value: number; trackId: string }) {
+  const elRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+    killTweensOf(el);
+    const tw = animateCountUp(el, value, { decimals: 2 });
+    return () => {
+      tw?.kill();
+    };
+  }, [value]);
+  return (
+    <span
+      ref={elRef}
+      data-reward-fig={trackId}
+      className="sg-text-2xl font-semibold text-[var(--text-primary)] sg-tabular"
+    >
+      {value.toFixed(2)}
+    </span>
+  );
+}
 
 export default function RewardsPage() {
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [claiming, setClaiming] = useState<"all" | string | null>(null);
   const [error, setError] = useState("");
+  const [sentId, setSentId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const load = () => {
-    fetch("/api/user?telegramId=" + getTelegramId())
+    fetch(`/api/user?telegramId=${encodeURIComponent(getTelegramId())}`)
       .then((r) => r.json())
-      .then((data) => setInvestments((data.investments || []).filter((i: Investment) => i.accumulatedReward > 0)));
+      .then((data) => {
+        const inv = (data.investments || []) as Row[];
+        setRows(inv.filter((i) => i.tokensInvested > 0));
+      });
   };
-  useEffect(load, []);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  useLayoutEffect(() => {
+    requestAnimationFrame(() => animateListCards(listRef.current));
+  }, [rows]);
+
+  const totalPending = useMemo(
+    () => rows.reduce((s, r) => s + Number(r.accumulatedReward || 0), 0),
+    [rows],
+  );
+
+  const runCountDown = (el: HTMLElement | null, from: number) => {
+    if (!el) return;
+    killTweensOf(el);
+    if (prefersReducedMotion()) {
+      el.textContent = "0.00";
+      return;
+    }
+    const state = { n: from };
+    gsap.to(state, {
+      n: 0,
+      duration: 0.8,
+      ease: "power2.out",
+      onUpdate: () => {
+        el.textContent = state.n.toFixed(2);
+      },
+    });
+  };
 
   const claim = async (companyId?: string) => {
-    setLoading(true);
     setError("");
+    setClaiming(companyId ?? "all");
+    const body = companyId
+      ? { telegramId: getTelegramId(), companyId }
+      : { telegramId: getTelegramId(), claimAll: true };
     const res = await fetch("/api/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId: getTelegramId(), ...(companyId ? { companyId } : { claimAll: true }) }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
-    setLoading(false);
+    setClaiming(null);
     if (!res.ok || !data.success) return setError(data.message || "Claim failed.");
-    load();
+
+    if (companyId) {
+      const row = rows.find((r) => r.companyId === companyId);
+      const amt = row ? Number(row.accumulatedReward) : 0;
+      const el = document.querySelector<HTMLElement>(`[data-reward-fig="${companyId}"]`);
+      runCountDown(el, amt);
+      setSentId(companyId);
+      window.setTimeout(() => {
+        setSentId(null);
+        load();
+      }, 1400);
+    } else {
+      load();
+    }
   };
 
   return (
-    <section className="space-y-4">
-      <div className="card">
-        <h1 className="text-2xl font-extrabold">Your Rewards</h1>
-        <p className="mt-2 text-sm text-[#A0A0B0]">
-          Rewards accumulate daily based on your investments. Add a trustline first to receive tokens.
-        </p>
+    <section className="space-y-4 pb-28">
+      <div ref={listRef} className="space-y-3">
+        {rows.map((inv) => {
+          const company = companies.find((c) => c.id === inv.companyId);
+          const meta = computeBatchProgress(inv);
+          const pending = Number(inv.accumulatedReward || 0);
+          const canClaim = pending > 0;
+          const busy = claiming === inv.companyId;
+          return (
+            <Card key={inv.companyId} data-stagger-card className="space-y-3 border-[var(--border)]" data-page-child>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">{inv.companyName}</h2>
+                <span className="sg-chip">{inv.assetCode}</span>
+              </div>
+              <p className="sg-text-sm text-[var(--text-secondary)]">
+                {meta.batchesReady} batch{meta.batchesReady === 1 ? "" : "es"} accumulated
+              </p>
+              <RewardFigure value={pending} trackId={inv.companyId} />
+              <p className="sg-text-sm text-[var(--text-muted)]">
+                {company
+                  ? `${company.dailyRate.toFixed(2)} ${inv.assetCode} per GROW · daily`
+                  : null}
+              </p>
+              {sentId === inv.companyId ? (
+                <div className="flex items-center gap-2 text-[var(--success)]">
+                  <CheckCircle2 size={16} aria-hidden />
+                  <span className="sg-text-sm font-medium">Sent to your wallet</span>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  block
+                  disabled={!canClaim || Boolean(claiming)}
+                  onClick={() => claim(inv.companyId)}
+                >
+                  {busy ? (
+                    <>
+                      <InlineLoadingDot />
+                      <span>Sending…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} aria-hidden />
+                      <span>Claim</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </Card>
+          );
+        })}
       </div>
-      <button className="btn-primary" onClick={() => claim()}>Claim All</button>
-      {loading ? <SpinnerLabel text="Submitting reward claim..." /> : null}
 
-      {investments.map((inv) => {
-        const company = companies.find((c) => c.id === inv.companyId);
-        return (
-          <div className="card space-y-3" key={inv.companyId}>
-            <h2 className="text-xl font-extrabold">{inv.companyName}</h2>
-            <p className="text-sm text-[#A0A0B0]">Token: {inv.assetCode}</p>
-            <p className="text-3xl font-black">{Number(inv.accumulatedReward).toFixed(2)}</p>
-            <p className="text-sm text-[#A0A0B0]">Daily rate: {company?.dailyRate.toFixed(2)} per GROW per day</p>
-            <ProgressBar label="Time since last claim" value={100} />
-            <button className="min-h-[48px] w-full rounded-xl bg-[#4CAF50] font-bold text-[#0b1a0b]" onClick={() => claim(inv.companyId)}>
-              Claim {Number(inv.accumulatedReward).toFixed(2)} {inv.assetCode}
-            </button>
-          </div>
-        );
-      })}
       {error ? <ErrorCard text={error} /> : null}
+
+      <div
+        className={`pointer-events-none fixed left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 px-4 transition-transform duration-300 ease-out ${
+          totalPending > 0 ? "translate-y-0" : "translate-y-[140%]"
+        }`}
+        style={{
+          bottom: "calc(64px + env(safe-area-inset-bottom, 0px) + 8px)",
+        }}
+      >
+        <div className="pointer-events-auto">
+          <Button
+            variant="primary"
+            block
+            disabled={totalPending <= 0 || Boolean(claiming)}
+            onClick={() => claim()}
+          >
+            {claiming === "all" ? (
+              <>
+                <InlineLoadingDot />
+                <span>Sending…</span>
+              </>
+            ) : (
+              <>
+                <Download size={16} aria-hidden />
+                <span>Claim all</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     </section>
   );
 }

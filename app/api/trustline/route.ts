@@ -17,6 +17,12 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ success: false, message: "User not found." }, { status: 404 });
     }
+    if (!user.isVerified) {
+      return NextResponse.json(
+        { success: false, message: "Wallet not verified" },
+        { status: 403 },
+      );
+    }
 
     const trustline = user.trustlines.find((t: { companyId: string }) => t.companyId === companyId);
     if (trustline) {

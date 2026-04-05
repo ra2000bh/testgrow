@@ -18,6 +18,7 @@ const TrustlineSchema = new Schema(
   {
     companyId: { type: String, required: true },
     confirmed: { type: Boolean, default: false },
+    lastCheckedAt: { type: Date, required: false },
   },
   { _id: false },
 );
@@ -57,7 +58,7 @@ export type UserDoc = {
   growBalance: number;
   totalInvested: number;
   investments: Investment[];
-  trustlines: { companyId: string; confirmed: boolean }[];
+  trustlines: { companyId: string; confirmed: boolean; lastCheckedAt?: Date }[];
 };
 
 export const User = models.User || model("User", UserSchema);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { isValidStellarPublicKey } from "@/lib/stellar";
+import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 
 const schema = z.object({
   telegramId: z.string().min(1),
@@ -18,7 +19,10 @@ export async function POST(request: NextRequest) {
     const payload = schema.parse(await request.json());
 
     if (!isValidStellarPublicKey(payload.publicKey)) {
-      return NextResponse.json({ message: "Invalid Stellar public key format." }, { status: 400 });
+      return NextResponse.json(
+        { message: "Invalid Stellar public key format." },
+        { status: 400, headers: CACHE_PRIVATE_NO_STORE },
+      );
     }
 
     await connectToDatabase();
@@ -32,12 +36,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      verificationCode: user.verificationCode,
-      memoWallet: process.env.STELLAR_MEMO_WALLET_PUBLIC_KEY,
-      isVerified: user.isVerified,
-    });
+    return NextResponse.json(
+      {
+        verificationCode: user.verificationCode,
+        memoWallet: process.env.STELLAR_MEMO_WALLET_PUBLIC_KEY,
+        isVerified: user.isVerified,
+      },
+      { headers: CACHE_PRIVATE_NO_STORE },
+    );
   } catch {
-    return NextResponse.json({ message: "Unable to register wallet right now." }, { status: 500 });
+    return NextResponse.json(
+      { message: "Unable to register wallet right now." },
+      { status: 500, headers: CACHE_PRIVATE_NO_STORE },
+    );
   }
 }

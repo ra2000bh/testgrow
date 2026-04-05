@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full">
+      <body className={`${inter.className} min-h-full`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

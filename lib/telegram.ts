@@ -3,7 +3,7 @@
 type TelegramWebApp = {
   ready: () => void;
   expand: () => void;
-  initDataUnsafe?: { user?: { id?: number; username?: string } };
+  initDataUnsafe?: { user?: { id?: number; username?: string; first_name?: string } };
   BackButton: {
     show: () => void;
     hide: () => void;
@@ -46,7 +46,7 @@ export function setupTelegramBackButton(pathname: string) {
   try {
     const WebApp = getWebApp();
     if (!WebApp) return;
-    if (pathname === "/") {
+    if (pathname === "/" || pathname === "/wallet") {
       WebApp.BackButton.hide();
       return;
     }
