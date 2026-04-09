@@ -13,7 +13,7 @@ export type CompanyConfig = {
 export const GROW_ASSET_CODE = "GROW";
 
 const growIssuer =
-  process.env.NEXT_PUBLIC_STELLAR_PUBLIC_KEY?.trim() || "ISSUER_NOT_SET";
+  process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim() || "ISSUER_NOT_SET";
 
 export const companies: CompanyConfig[] = [
   {
