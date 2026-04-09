@@ -9,58 +9,78 @@ export type CompanyConfig = {
   issuer: string;
 };
 
-const fallback = (value: string | undefined, label: string) => value?.trim() || label;
+/** GROW and all bonus payouts use this asset from a single issuer wallet. */
+export const GROW_ASSET_CODE = "GROW";
+
+const growIssuer =
+  process.env.NEXT_PUBLIC_STELLAR_PUBLIC_KEY?.trim() || "ISSUER_NOT_SET";
 
 export const companies: CompanyConfig[] = [
   {
     id: "company-1",
-    name: "AusTech Solutions",
+    name: "Hola Health",
     country: "AU",
-    industry: "Technology",
-    description: "Software and digital transformation services for regional Australian SMEs.",
+    industry: "Telehealth",
+    description:
+      "24/7 on-demand telehealth platform connecting Australians to a GP within 15 minutes — targeting rural & regional communities with no local doctor access.",
     dailyRate: 0.5,
-    assetCode: fallback(process.env.COMPANY_1_ASSET_CODE, "AUSTECH"),
-    issuer: fallback(process.env.COMPANY_1_ISSUER, "ISSUER_NOT_SET"),
+    assetCode: GROW_ASSET_CODE,
+    issuer: growIssuer,
   },
   {
     id: "company-2",
-    name: "MedCare Australia",
+    name: "Kite Therapy",
     country: "AU",
-    industry: "Healthcare",
-    description: "Private clinic network improving telehealth for small communities.",
-    dailyRate: 0.4,
-    assetCode: fallback(process.env.COMPANY_2_ASSET_CODE, "MEDCARE"),
-    issuer: fallback(process.env.COMPANY_2_ISSUER, "ISSUER_NOT_SET"),
+    industry: "Child development",
+    description:
+      "Coaches parents to deliver evidence-based therapy at home for children with autism & developmental delays — making care affordable where waitlists run years long.",
+    dailyRate: 0.42,
+    assetCode: GROW_ASSET_CODE,
+    issuer: growIssuer,
   },
   {
     id: "company-3",
-    name: "GreenRetail US",
-    country: "US",
-    industry: "Retail",
-    description: "Eco-friendly retail chain modernizing local store operations.",
-    dailyRate: 0.45,
-    assetCode: fallback(process.env.COMPANY_3_ASSET_CODE, "GREENUS"),
-    issuer: fallback(process.env.COMPANY_3_ISSUER, "ISSUER_NOT_SET"),
+    name: "Amber Electric",
+    country: "AU",
+    industry: "Energy",
+    description:
+      "Smart energy platform that buys and sells renewable electricity for homes at real-time wholesale prices, putting households in control of their energy bills.",
+    dailyRate: 0.48,
+    assetCode: GROW_ASSET_CODE,
+    issuer: growIssuer,
   },
   {
     id: "company-4",
-    name: "BuildCore US",
+    name: "Dandelion Energy",
     country: "US",
-    industry: "Construction",
-    description: "Modular construction supplier focused on faster housing projects.",
-    dailyRate: 0.35,
-    assetCode: fallback(process.env.COMPANY_4_ASSET_CODE, "BUILDUS"),
-    issuer: fallback(process.env.COMPANY_4_ISSUER, "ISSUER_NOT_SET"),
+    industry: "Geothermal",
+    description:
+      "Installs residential geothermal heating & cooling systems — replacing fossil fuel furnaces with clean, affordable energy for American homeowners.",
+    dailyRate: 0.4,
+    assetCode: GROW_ASSET_CODE,
+    issuer: growIssuer,
   },
   {
     id: "company-5",
-    name: "FinBridge AU",
+    name: "Cityblock Health",
+    country: "US",
+    industry: "Community health",
+    description:
+      "Delivers primary care, mental health, and social services to Medicaid patients in underserved US neighbourhoods who are systematically failed by mainstream healthcare.",
+    dailyRate: 0.38,
+    assetCode: GROW_ASSET_CODE,
+    issuer: growIssuer,
+  },
+  {
+    id: "company-6",
+    name: "Goterra",
     country: "AU",
-    industry: "Finance",
-    description: "SME lending platform improving access to growth capital.",
-    dailyRate: 0.55,
-    assetCode: fallback(process.env.COMPANY_5_ASSET_CODE, "FINBAU"),
-    issuer: fallback(process.env.COMPANY_5_ISSUER, "ISSUER_NOT_SET"),
+    industry: "AgTech",
+    description:
+      "Robotic insect farms that convert organic food waste into sustainable animal feed — tackling both food waste and the global protein shortage simultaneously.",
+    dailyRate: 0.45,
+    assetCode: GROW_ASSET_CODE,
+    issuer: growIssuer,
   },
 ];
 
