@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { Clock, Copy, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, Clock, Copy, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -13,8 +13,13 @@ import { getTelegramId, syncSessionCookie } from "@/lib/client";
 import { initTelegramWebApp } from "@/lib/telegram";
 import { formatAddress, isValidStellarPublicKey } from "@/lib/stellar";
 import { animateVerificationCelebration, prefersReducedMotion } from "@/lib/animations";
+import { useCopyToClipboard } from "@/lib/use-copy-to-clipboard";
 
 const SESSION_UPDATE_EVENT = "stellargrow:session-update";
+
+const COPY_ID_MEMO = "memo-wallet";
+const COPY_ID_CODE = "verification-code";
+const COPY_ID_LINKED = "linked-address";
 
 function dispatchSessionUpdate() {
   syncSessionCookie();
@@ -45,6 +50,7 @@ export default function WalletPage() {
   const celebrateIconRef = useRef<HTMLDivElement>(null);
   const rippleRef = useRef<HTMLDivElement>(null);
   const prevVerifyPublicKey = useRef<string | undefined>(undefined);
+  const { lastCopiedId, copy: copyWithFeedback } = useCopyToClipboard();
 
   const loadUser = useCallback((): Promise<void> => {
     const telegramId = getTelegramId();
@@ -220,14 +226,6 @@ export default function WalletPage() {
     setCheckMessage(data.message || "Not found yet — try again in a few seconds.");
   };
 
-  const copy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      /* ignore */
-    }
-  };
-
   if (loading) {
     return <LoadingPulse label="Checking Stellar network..." />;
   }
@@ -333,9 +331,33 @@ export default function WalletPage() {
             <div className="min-w-0 flex-1 space-y-2">
               <p className="sg-text-md font-semibold text-[var(--text-primary)]">Wallet linked</p>
               <p className="sg-mono sg-text-sm break-all text-[var(--text-secondary)]">{user.publicKey}</p>
-              <Button type="button" variant="secondary" size="sm" onClick={() => copy(user.publicKey)}>
-                <Copy size={16} aria-hidden />
-                <span>Copy address</span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className={
+                  lastCopiedId === COPY_ID_LINKED
+                    ? "border-[var(--success)] text-[var(--success)]"
+                    : ""
+                }
+                aria-label={
+                  lastCopiedId === COPY_ID_LINKED
+                    ? "Address copied to clipboard"
+                    : "Copy Stellar address"
+                }
+                onClick={() => copyWithFeedback(COPY_ID_LINKED, user.publicKey)}
+              >
+                {lastCopiedId === COPY_ID_LINKED ? (
+                  <>
+                    <Check size={16} aria-hidden />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} aria-hidden />
+                    <span>Copy address</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -414,11 +436,28 @@ export default function WalletPage() {
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => copy(user.memoWallet)}
+            className={
+              lastCopiedId === COPY_ID_MEMO ? "border-[var(--success)] text-[var(--success)]" : ""
+            }
+            aria-label={
+              lastCopiedId === COPY_ID_MEMO
+                ? "Memo wallet address copied"
+                : "Copy memo wallet address"
+            }
+            onClick={() => copyWithFeedback(COPY_ID_MEMO, user.memoWallet)}
             disabled={!user.memoWallet}
           >
-            <Copy size={16} aria-hidden />
-            <span>Copy address</span>
+            {lastCopiedId === COPY_ID_MEMO ? (
+              <>
+                <Check size={16} aria-hidden />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy size={16} aria-hidden />
+                <span>Copy address</span>
+              </>
+            )}
           </Button>
         </div>
 
@@ -431,9 +470,29 @@ export default function WalletPage() {
           <p className="sg-mono sg-text-xl font-semibold tracking-wide text-[var(--text-primary)]">
             {user.verificationCode}
           </p>
-          <Button type="button" variant="secondary" size="sm" onClick={() => copy(user.verificationCode)}>
-            <Copy size={16} aria-hidden />
-            <span>Copy code</span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className={
+              lastCopiedId === COPY_ID_CODE ? "border-[var(--success)] text-[var(--success)]" : ""
+            }
+            aria-label={
+              lastCopiedId === COPY_ID_CODE ? "Verification code copied" : "Copy verification code"
+            }
+            onClick={() => copyWithFeedback(COPY_ID_CODE, user.verificationCode)}
+          >
+            {lastCopiedId === COPY_ID_CODE ? (
+              <>
+                <Check size={16} aria-hidden />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy size={16} aria-hidden />
+                <span>Copy code</span>
+              </>
+            )}
           </Button>
         </div>
       </Card>
