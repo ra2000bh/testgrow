@@ -26,15 +26,68 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    let user = await User.findOne({ $or: [{ telegramId: payload.telegramId }, { publicKey: payload.publicKey }] });
-    if (!user) {
-      user = await User.create({
-        telegramId: payload.telegramId,
+
+    const byTelegram = await User.findOne({ telegramId: payload.telegramId });
+    if (byTelegram) {
+      const keyTaken = await User.findOne({
         publicKey: payload.publicKey,
-        verificationCode: generateVerificationCode(),
-        verificationExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        telegramId: { $ne: payload.telegramId },
       });
+      if (keyTaken) {
+        return NextResponse.json(
+          { message: "This Stellar address is already linked to another account." },
+          { status: 409, headers: CACHE_PRIVATE_NO_STORE },
+        );
+      }
+      if (byTelegram.publicKey === payload.publicKey) {
+        if (byTelegram.isVerified) {
+          return NextResponse.json(
+            {
+              verificationCode: byTelegram.verificationCode,
+              memoWallet: process.env.STELLAR_MEMO_WALLET_PUBLIC_KEY,
+              isVerified: true,
+            },
+            { headers: CACHE_PRIVATE_NO_STORE },
+          );
+        }
+        return NextResponse.json(
+          {
+            verificationCode: byTelegram.verificationCode,
+            memoWallet: process.env.STELLAR_MEMO_WALLET_PUBLIC_KEY,
+            isVerified: false,
+          },
+          { headers: CACHE_PRIVATE_NO_STORE },
+        );
+      }
+      byTelegram.publicKey = payload.publicKey;
+      byTelegram.verificationCode = generateVerificationCode();
+      byTelegram.verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      byTelegram.isVerified = false;
+      await byTelegram.save();
+      return NextResponse.json(
+        {
+          verificationCode: byTelegram.verificationCode,
+          memoWallet: process.env.STELLAR_MEMO_WALLET_PUBLIC_KEY,
+          isVerified: false,
+        },
+        { headers: CACHE_PRIVATE_NO_STORE },
+      );
     }
+
+    const byKey = await User.findOne({ publicKey: payload.publicKey });
+    if (byKey) {
+      return NextResponse.json(
+        { message: "This Stellar address is already registered." },
+        { status: 409, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+
+    const user = await User.create({
+      telegramId: payload.telegramId,
+      publicKey: payload.publicKey,
+      verificationCode: generateVerificationCode(),
+      verificationExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
 
     return NextResponse.json(
       {

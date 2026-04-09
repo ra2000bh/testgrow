@@ -15,7 +15,8 @@ import {
   killTweensOf,
   prefersReducedMotion,
 } from "@/lib/animations";
-import { CheckCircle2, Download } from "lucide-react";
+import Link from "next/link";
+import { Building2, CheckCircle2, Download } from "lucide-react";
 import type { Investment } from "@/models/User";
 
 type Row = Investment & { accumulatedReward: number };
@@ -138,6 +139,23 @@ export default function RewardsPage() {
 
   return (
     <section className="space-y-4 pb-28">
+      {rows.length === 0 ? (
+        <Card className="space-y-3 border-[var(--border)]" data-page-child>
+          <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">No rewards yet</h2>
+          <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
+            Daily bonus GROW only builds up after you invest GROW in at least one company. Visit Companies,
+            choose a portfolio company, and allocate tokens — then accrued rewards for each stake will
+            appear here so you can claim them to your Stellar wallet.
+          </p>
+          <Link href="/companies" className="block">
+            <Button variant="primary" block type="button">
+              <Building2 size={18} aria-hidden />
+              <span>Go to Companies</span>
+            </Button>
+          </Link>
+        </Card>
+      ) : null}
+
       <div ref={listRef} className="space-y-3">
         {rows.map((inv) => {
           const company = companies.find((c) => c.id === inv.companyId);

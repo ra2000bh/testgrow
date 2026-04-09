@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    const t = window.setTimeout(() => {
+    const run = () => {
       const id = getTelegramId();
       if (!id) {
         if (!cancelled) setVerified(false);
@@ -39,10 +39,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         .catch(() => {
           if (!cancelled) setVerified(false);
         });
-    }, 0);
+    };
+    const t = window.setTimeout(run, 0);
+    const onSession = () => run();
+    window.addEventListener("stellargrow:session-update", onSession);
     return () => {
       cancelled = true;
       window.clearTimeout(t);
+      window.removeEventListener("stellargrow:session-update", onSession);
     };
   }, [pathname]);
 

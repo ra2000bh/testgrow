@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { Clock, Copy, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/Button";
@@ -15,6 +14,13 @@ import { initTelegramWebApp } from "@/lib/telegram";
 import { formatAddress, isValidStellarPublicKey } from "@/lib/stellar";
 import { animateVerificationCelebration, prefersReducedMotion } from "@/lib/animations";
 
+const SESSION_UPDATE_EVENT = "stellargrow:session-update";
+
+function dispatchSessionUpdate() {
+  syncSessionCookie();
+  window.dispatchEvent(new Event(SESSION_UPDATE_EVENT));
+}
+
 type UserRow = {
   publicKey: string;
   isVerified: boolean;
@@ -24,7 +30,6 @@ type UserRow = {
 };
 
 export default function WalletPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserRow | null>(null);
   const [publicKey, setPublicKey] = useState("");
@@ -33,18 +38,22 @@ export default function WalletPage() {
   const [streamStatus, setStreamStatus] = useState<"listening" | "verified">("listening");
   const [streamError, setStreamError] = useState("");
   const [stepFill, setStepFill] = useState(0);
+  const [checkBusy, setCheckBusy] = useState(false);
+  const [checkMessage, setCheckMessage] = useState("");
+  const [changeAddressMode, setChangeAddressMode] = useState(false);
   const stepBarRef = useRef<HTMLDivElement>(null);
   const celebrateIconRef = useRef<HTMLDivElement>(null);
   const rippleRef = useRef<HTMLDivElement>(null);
+  const prevVerifyPublicKey = useRef<string | undefined>(undefined);
 
-  const loadUser = useCallback(() => {
+  const loadUser = useCallback((): Promise<void> => {
     const telegramId = getTelegramId();
     if (!telegramId) {
       setUser(null);
       setLoading(false);
-      return;
+      return Promise.resolve();
     }
-    fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`)
+    return fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`)
       .then((r) => {
         if (r.status === 404) {
           setUser(null);
@@ -55,18 +64,13 @@ export default function WalletPage() {
       })
       .then((data: UserRow | null) => {
         if (!data) return;
-        if (data.isVerified) {
-          setLoading(false);
-          router.replace("/dashboard");
-          return;
-        }
         setUser(data);
         setLoading(false);
       })
       .catch(() => {
         setLoading(false);
       });
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => loadUser(), 0);
@@ -99,6 +103,17 @@ export default function WalletPage() {
 
   useEffect(() => {
     if (!user || user.isVerified) return;
+    const pk = user.publicKey;
+    if (prevVerifyPublicKey.current === pk) return;
+    prevVerifyPublicKey.current = pk;
+    setStreamStatus("listening");
+    setStepFill(0);
+    setStreamError("");
+    setCheckMessage("");
+  }, [user?.publicKey, user?.isVerified]);
+
+  useEffect(() => {
+    if (!user || user.isVerified) return;
     const es = new EventSource("/api/verify/stream");
     es.onmessage = (ev) => {
       try {
@@ -110,7 +125,9 @@ export default function WalletPage() {
         if (msg.status === "verified") {
           setStreamStatus("verified");
           setStepFill(100);
-          window.setTimeout(() => router.replace("/dashboard"), 1500);
+          setCheckMessage("");
+          dispatchSessionUpdate();
+          window.setTimeout(() => loadUser(), 600);
           es.close();
         }
         if (msg.status === "error" && msg.message) setStreamError(msg.message);
@@ -123,7 +140,7 @@ export default function WalletPage() {
       es.close();
     };
     return () => es.close();
-  }, [user, router]);
+  }, [user, loadUser]);
 
   useEffect(() => {
     if (streamStatus !== "verified") return;
@@ -138,7 +155,7 @@ export default function WalletPage() {
   const invalid56 = len === 56 && !isValidStellarPublicKey(trimmed);
   const valid56 = len === 56 && isValidStellarPublicKey(trimmed);
 
-  const addWallet = async () => {
+  const submitPublicKey = async () => {
     setError("");
     if (!valid56) {
       setError(len === 56 ? "Invalid public key format" : "Enter a valid 56-character public key.");
@@ -162,8 +179,45 @@ export default function WalletPage() {
       setError(data.message || "Could not add wallet.");
       return;
     }
-    syncSessionCookie();
-    loadUser();
+    setChangeAddressMode(false);
+    setPublicKey("");
+    dispatchSessionUpdate();
+    await loadUser();
+  };
+
+  const checkNow = async () => {
+    setCheckMessage("");
+    setStreamError("");
+    initTelegramWebApp();
+    const telegramId = getTelegramId();
+    if (!telegramId) {
+      setCheckMessage("Open this app from Telegram to continue.");
+      return;
+    }
+    setCheckBusy(true);
+    const res = await fetch("/api/verify/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId }),
+    });
+    const data = (await res.json()) as {
+      success?: boolean;
+      verified?: boolean;
+      message?: string;
+    };
+    setCheckBusy(false);
+    if (data.verified) {
+      setStreamStatus("verified");
+      setStepFill(100);
+      dispatchSessionUpdate();
+      window.setTimeout(() => loadUser(), 400);
+      return;
+    }
+    if (!res.ok) {
+      setCheckMessage(data.message || "Check failed.");
+      return;
+    }
+    setCheckMessage(data.message || "Not found yet — try again in a few seconds.");
   };
 
   const copy = async (value: string) => {
@@ -203,7 +257,7 @@ export default function WalletPage() {
               <p className="sg-text-sm text-[var(--error)]">Invalid public key format</p>
             ) : null}
           </div>
-          <Button block variant="primary" onClick={addWallet} disabled={submitting || !valid56}>
+          <Button block variant="primary" onClick={submitPublicKey} disabled={submitting || !valid56}>
             Add Wallet
           </Button>
           <p className="sg-text-xs text-center text-[var(--text-muted)]">
@@ -216,6 +270,82 @@ export default function WalletPage() {
             <ErrorCard text={error} />
           </div>
         ) : null}
+      </section>
+    );
+  }
+
+  if (user.isVerified && changeAddressMode) {
+    return (
+      <section className="space-y-5 pb-4" data-page-child>
+        <Card className="space-y-4" data-page-child>
+          <div className="space-y-1">
+            <p className="sg-text-md font-semibold text-[var(--text-primary)]">New Stellar address</p>
+            <p className="sg-text-sm text-[var(--text-secondary)]">
+              After saving, you will verify again with 0.01 XLM to the memo wallet.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="pk2" className="sg-text-sm font-medium text-[var(--text-secondary)]">
+              Public key
+            </label>
+            <Input
+              id="pk2"
+              value={publicKey}
+              onChange={(e) => setPublicKey(e.target.value)}
+              placeholder="G... (56 characters)"
+              showValid={valid56}
+              error={invalid56}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {invalid56 ? (
+              <p className="sg-text-sm text-[var(--error)]">Invalid public key format</p>
+            ) : null}
+          </div>
+          <Button block variant="primary" onClick={submitPublicKey} disabled={submitting || !valid56}>
+            Save and start verification
+          </Button>
+          <Button
+            block
+            variant="secondary"
+            type="button"
+            onClick={() => {
+              setChangeAddressMode(false);
+              setPublicKey("");
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+        </Card>
+        {error ? <ErrorCard text={error} /> : null}
+        {submitting ? <LoadingPulse label="Saving..." /> : null}
+      </section>
+    );
+  }
+
+  if (user.isVerified) {
+    return (
+      <section className="space-y-5 pb-4" data-page-child>
+        <Card className="space-y-4" data-page-child>
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 shrink-0 text-[var(--success)]" size={22} aria-hidden />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="sg-text-md font-semibold text-[var(--text-primary)]">Wallet linked</p>
+              <p className="sg-mono sg-text-sm break-all text-[var(--text-secondary)]">{user.publicKey}</p>
+              <Button type="button" variant="secondary" size="sm" onClick={() => copy(user.publicKey)}>
+                <Copy size={16} aria-hidden />
+                <span>Copy address</span>
+              </Button>
+            </div>
+          </div>
+          <p className="sg-text-sm text-[var(--text-muted)]">
+            You can link a different Stellar address any time. Doing so will require a new 0.01 XLM verification.
+          </p>
+          <Button type="button" variant="secondary" block onClick={() => setChangeAddressMode(true)}>
+            Link a different Stellar address
+          </Button>
+        </Card>
       </section>
     );
   }
@@ -252,9 +382,26 @@ export default function WalletPage() {
           <ol className="sg-text-sm list-decimal space-y-2 pl-4 text-[var(--text-secondary)]">
             <li>Open Lobstr or Solar wallet</li>
             <li>Send 0.01 XLM to the memo wallet with your memo code</li>
-            <li>Verification confirms automatically</li>
+            <li>Verification confirms automatically, or tap “Check now” below</li>
           </ol>
         </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          block
+          disabled={checkBusy || streamStatus === "verified"}
+          onClick={checkNow}
+        >
+          {checkBusy ? (
+            <span>Checking Horizon…</span>
+          ) : (
+            <span>I’ve sent 0.01 XLM — check now</span>
+          )}
+        </Button>
+        {checkMessage ? (
+          <p className="sg-text-sm text-[var(--text-secondary)]">{checkMessage}</p>
+        ) : null}
 
         <div className="space-y-2">
           <p className="sg-text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
@@ -305,7 +452,7 @@ export default function WalletPage() {
           </p>
           <p className="sg-text-sm text-[var(--text-muted)]">
             {streamStatus === "verified"
-              ? "Opening dashboard…"
+              ? "Updating your wallet status…"
               : "Waiting for your Stellar payment"}
           </p>
         </div>
