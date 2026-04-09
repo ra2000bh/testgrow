@@ -11,6 +11,7 @@ import { GrowLogo } from "@/components/GrowLogo";
 import { Input } from "@/components/Input";
 import { LoadingPulse } from "@/components/LoadingPulse";
 import { getTelegramId, syncSessionCookie } from "@/lib/client";
+import { initTelegramWebApp } from "@/lib/telegram";
 import { formatAddress, isValidStellarPublicKey } from "@/lib/stellar";
 import { animateVerificationCelebration, prefersReducedMotion } from "@/lib/animations";
 
@@ -143,6 +144,7 @@ export default function WalletPage() {
       setError(len === 56 ? "Invalid public key format" : "Enter a valid 56-character public key.");
       return;
     }
+    initTelegramWebApp();
     const telegramId = getTelegramId();
     if (!telegramId) {
       setError("Open this app from Telegram to continue.");

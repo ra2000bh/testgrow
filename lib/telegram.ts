@@ -1,15 +1,32 @@
 "use client";
 
+type TelegramUser = { id?: number; username?: string; first_name?: string };
+
 type TelegramWebApp = {
   ready: () => void;
   expand: () => void;
-  initDataUnsafe?: { user?: { id?: number; username?: string; first_name?: string } };
+  /** Signed init string; may contain `user` when initDataUnsafe is empty on some clients. */
+  initData?: string;
+  initDataUnsafe?: { user?: TelegramUser };
   BackButton: {
     show: () => void;
     hide: () => void;
     onClick: (callback: () => void) => void;
   };
 };
+
+function parseUserFromInitData(webApp: TelegramWebApp): TelegramUser | null {
+  try {
+    const raw = webApp.initData;
+    if (!raw || typeof raw !== "string") return null;
+    const params = new URLSearchParams(raw);
+    const userJson = params.get("user");
+    if (!userJson) return null;
+    return JSON.parse(userJson) as TelegramUser;
+  } catch {
+    return null;
+  }
+}
 
 function getWebApp(): TelegramWebApp | null {
   if (typeof window === "undefined") return null;
@@ -36,7 +53,11 @@ export function getTelegramUser() {
   try {
     const WebApp = getWebApp();
     if (!WebApp) return null;
-    return WebApp.initDataUnsafe?.user ?? null;
+    const unsafe = WebApp.initDataUnsafe?.user;
+    if (unsafe?.id != null) return unsafe;
+    const parsed = parseUserFromInitData(WebApp);
+    if (parsed?.id != null) return parsed;
+    return null;
   } catch {
     return null;
   }
