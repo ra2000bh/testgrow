@@ -4,7 +4,7 @@ import gsap from "gsap";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getTelegramId } from "@/lib/client";
 import { companies } from "@/lib/companies";
-import { computeBatchProgress } from "@/lib/rewards";
+import { computeBatchProgress, computePendingReward } from "@/lib/rewards";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -62,6 +62,7 @@ function RewardFigure({ value, trackId }: { value: number; trackId: string }) {
 
 export default function RewardsPage() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [tick, setTick] = useState(0);
   const [claiming, setClaiming] = useState<"all" | string | null>(null);
   const [error, setError] = useState("");
   const [sentId, setSentId] = useState<string | null>(null);
@@ -80,13 +81,18 @@ export default function RewardsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   useLayoutEffect(() => {
     requestAnimationFrame(() => animateListCards(listRef.current));
   }, [rows]);
 
   const totalPending = useMemo(
-    () => rows.reduce((s, r) => s + Number(r.accumulatedReward || 0), 0),
-    [rows],
+    () => rows.reduce((s, r) => s + computePendingReward(r), 0),
+    [rows, tick],
   );
 
   const runCountDown = (el: HTMLElement | null, from: number) => {
@@ -124,7 +130,7 @@ export default function RewardsPage() {
 
     if (companyId) {
       const row = rows.find((r) => r.companyId === companyId);
-      const amt = row ? Number(row.accumulatedReward) : 0;
+      const amt = row ? computePendingReward(row) : 0;
       const el = document.querySelector<HTMLElement>(`[data-reward-fig="${companyId}"]`);
       runCountDown(el, amt);
       setSentId(companyId);
@@ -160,7 +166,7 @@ export default function RewardsPage() {
         {rows.map((inv) => {
           const company = companies.find((c) => c.id === inv.companyId);
           const meta = computeBatchProgress(inv);
-          const pending = Number(inv.accumulatedReward || 0);
+          const pending = computePendingReward(inv);
           const canClaim = pending > 0;
           const busy = claiming === inv.companyId;
           return (

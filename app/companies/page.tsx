@@ -9,7 +9,7 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { animateInvestSheet, animateListCards } from "@/lib/animations";
-import { Link2, TrendingUp } from "lucide-react";
+import { Link2, MinusCircle, TrendingUp } from "lucide-react";
 
 type UserState = {
   growBalance: number;
@@ -79,6 +79,26 @@ export default function CompaniesPage() {
     reload();
   };
 
+  const withdrawStake = async (companyId: string, companyName: string) => {
+    setError("");
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        `Remove your entire stake in ${companyName}? Principal and any accrued rewards return to your GROW balance.`,
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/invest/withdraw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) return setError(data.message || "Could not remove stake.");
+    reload();
+  };
+
   const dailyPreview = company ? amount * company.dailyRate : 0;
 
   return (
@@ -129,6 +149,16 @@ export default function CompaniesPage() {
                   >
                     <TrendingUp size={16} aria-hidden />
                     <span>Invest</span>
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    type="button"
+                    disabled={!user || current <= 0}
+                    onClick={() => withdrawStake(c.id, c.name)}
+                  >
+                    <MinusCircle size={16} aria-hidden />
+                    <span>Remove stake</span>
                   </Button>
                   <Button
                     variant="secondary"

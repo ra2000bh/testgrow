@@ -3,9 +3,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
-import { Building2, Clock, Download, Gift, ShieldCheck, TrendingUp } from "lucide-react";
+import { Building2, Clock, Download, Gift, MinusCircle, ShieldCheck, TrendingUp } from "lucide-react";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { AnimatedProgress } from "@/components/AnimatedProgress";
+import { LinearProgress } from "@/components/LinearProgress";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { LoadingPulse } from "@/components/LoadingPulse";
@@ -13,7 +13,7 @@ import { getTelegramId } from "@/lib/client";
 import { formatHMS } from "@/lib/format-time";
 import { getTelegramUser } from "@/lib/telegram";
 import { formatAddress } from "@/lib/stellar";
-import { computeBatchProgress, DAY_MS } from "@/lib/rewards";
+import { computeBatchProgress, computePendingReward, DAY_MS } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { animateListCards, prefersReducedMotion } from "@/lib/animations";
 
@@ -36,9 +36,8 @@ function useNextBatchCountdown(lastRewardAtIso: string, enabled: boolean) {
       setLabel(formatHMS(remain));
     };
     tick();
-    if (prefersReducedMotion()) return;
-    gsap.ticker.add(tick);
-    return () => gsap.ticker.remove(tick);
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
   }, [lastRewardAtIso, enabled]);
 
   return label;
@@ -69,7 +68,13 @@ function ReadyDot() {
   );
 }
 
-function BatchRow({ inv }: { inv: Investment }) {
+function BatchRow({
+  inv,
+  onWithdraw,
+}: {
+  inv: Investment;
+  onWithdraw: (companyId: string) => void;
+}) {
   const meta = computeBatchProgress(inv);
   const lastIso =
     typeof inv.lastRewardAt === "string"
@@ -79,12 +84,33 @@ function BatchRow({ inv }: { inv: Investment }) {
 
   return (
     <Card data-stagger-card className="space-y-3 border-[var(--border)]">
-      <div className="flex items-center gap-2">
-        {meta.batchesReady > 0 ? <ReadyDot /> : null}
-        <span className="sg-text-md font-semibold text-[var(--text-primary)]">{inv.companyName}</span>
-        <span className="sg-chip">{inv.assetCode}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {meta.batchesReady > 0 ? <ReadyDot /> : null}
+          <span className="sg-text-md font-semibold text-[var(--text-primary)]">{inv.companyName}</span>
+          <span className="sg-chip">{inv.assetCode}</span>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="shrink-0 text-[var(--text-muted)]"
+          onClick={() => {
+            if (
+              typeof window !== "undefined" &&
+              window.confirm(
+                `Remove your entire stake in ${inv.companyName}? Principal and any accrued rewards return to your GROW balance.`,
+              )
+            ) {
+              onWithdraw(inv.companyId);
+            }
+          }}
+        >
+          <MinusCircle size={16} aria-hidden />
+          <span>Remove stake</span>
+        </Button>
       </div>
-      <AnimatedProgress percent={meta.batchesReady > 0 ? 100 : meta.progressToNextPercent} />
+      <LinearProgress percent={meta.batchesReady > 0 ? 100 : meta.progressToNextPercent} />
       <p className="sg-text-sm text-[var(--text-secondary)]">
         {meta.batchesReady > 0
           ? `${meta.batchesReady} batch${meta.batchesReady === 1 ? "" : "es"} ready — claim anytime`
@@ -104,18 +130,32 @@ type UserState = {
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserState | null>(null);
+  const [tick, setTick] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const statRef = useRef<HTMLDivElement>(null);
 
   const reload = () => {
     const telegramId = getTelegramId();
-    fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`)
-      .then((r) => r.json())
-      .then(setUser);
+    fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`).then((r) => {
+      if (r.status === 404) {
+        setUser(null);
+        router.replace("/wallet");
+        return null;
+      }
+      return r.json();
+    }).then((data) => {
+      if (data) setUser(data);
+    });
   };
 
   useEffect(() => {
     reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only load
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   useLayoutEffect(() => {
@@ -127,10 +167,10 @@ export default function DashboardPage() {
     return () => cancelAnimationFrame(t);
   }, [user]);
 
-  const totalRewards = useMemo(
-    () => (user?.investments ?? []).reduce((s, i) => s + Number(i.accumulatedReward || 0), 0),
-    [user],
-  );
+  const totalRewards = useMemo(() => {
+    if (!user) return 0;
+    return user.investments.reduce((s, i) => s + computePendingReward(i), 0);
+  }, [user, tick]);
 
   const totalClaimable = totalRewards;
 
@@ -149,6 +189,16 @@ export default function DashboardPage() {
       body: JSON.stringify({ telegramId: getTelegramId(), claimAll: true }),
     });
     if (res.ok) reload();
+  };
+
+  const withdrawStake = async (companyId: string) => {
+    const res = await fetch("/api/invest/withdraw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) reload();
   };
 
   if (!user) {
@@ -236,7 +286,7 @@ export default function DashboardPage() {
         </div>
         <div ref={listRef} className="space-y-3">
           {activeInvestments.map((inv) => (
-            <BatchRow key={inv.companyId} inv={inv} />
+            <BatchRow key={inv.companyId} inv={inv} onWithdraw={withdrawStake} />
           ))}
         </div>
       </section>

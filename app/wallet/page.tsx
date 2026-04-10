@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
-import { Check, Clock, Copy, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, Clock, Copy, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -35,6 +36,7 @@ type UserRow = {
 };
 
 export default function WalletPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserRow | null>(null);
   const [publicKey, setPublicKey] = useState("");
@@ -46,6 +48,8 @@ export default function WalletPage() {
   const [checkBusy, setCheckBusy] = useState(false);
   const [checkMessage, setCheckMessage] = useState("");
   const [changeAddressMode, setChangeAddressMode] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [accountError, setAccountError] = useState("");
   const stepBarRef = useRef<HTMLDivElement>(null);
   const celebrateIconRef = useRef<HTMLDivElement>(null);
   const rippleRef = useRef<HTMLDivElement>(null);
@@ -189,6 +193,40 @@ export default function WalletPage() {
     setPublicKey("");
     dispatchSessionUpdate();
     await loadUser();
+  };
+
+  const deleteAccount = async () => {
+    setAccountError("");
+    if (typeof window === "undefined") return;
+    if (
+      !window.confirm(
+        "Remove this wallet from StellarGrow? All portfolio data will be deleted. You must add a wallet again to use the app. This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    initTelegramWebApp();
+    const telegramId = getTelegramId();
+    if (!telegramId) {
+      setAccountError("Open this app from Telegram to continue.");
+      return;
+    }
+    setDeleteBusy(true);
+    const res = await fetch("/api/account/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId }),
+    });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      const data = (await res.json()) as { message?: string };
+      setAccountError(data.message || "Could not remove account.");
+      return;
+    }
+    setUser(null);
+    dispatchSessionUpdate();
+    router.replace("/wallet");
+    loadUser();
   };
 
   const checkNow = async () => {
@@ -367,6 +405,25 @@ export default function WalletPage() {
           <Button type="button" variant="secondary" block onClick={() => setChangeAddressMode(true)}>
             Link a different Stellar address
           </Button>
+        </Card>
+
+        <Card className="space-y-3 border-[var(--error)] bg-[var(--background-secondary)]" data-page-child>
+          <p className="sg-text-sm font-medium text-[var(--text-primary)]">Danger zone</p>
+          <p className="sg-text-sm text-[var(--text-secondary)]">
+            Deleting removes your Stellar link and all investments from this app. If you register again with a new
+            address, you start with a clean portfolio.
+          </p>
+          <Button
+            type="button"
+            variant="destructive"
+            block
+            disabled={deleteBusy}
+            onClick={deleteAccount}
+          >
+            <Trash2 size={16} aria-hidden />
+            <span>{deleteBusy ? "Removing…" : "Remove wallet from app"}</span>
+          </Button>
+          {accountError ? <ErrorCard text={accountError} /> : null}
         </Card>
       </section>
     );
