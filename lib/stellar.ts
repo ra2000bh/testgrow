@@ -11,6 +11,25 @@ import {
 const HORIZON_URL = process.env.STELLAR_HORIZON_URL || "https://horizon.stellar.org";
 const server = new Horizon.Server(HORIZON_URL);
 
+/** Match Horizon: testnet vs public network. */
+export function getStellarNetworkPassphrase(): string {
+  const raw = process.env.STELLAR_NETWORK_PASSPHRASE?.trim();
+  if (raw === "TESTNET" || raw === Networks.TESTNET) return Networks.TESTNET;
+  if (raw === "PUBLIC" || raw === Networks.PUBLIC) return Networks.PUBLIC;
+  if (HORIZON_URL.includes("testnet")) return Networks.TESTNET;
+  return Networks.PUBLIC;
+}
+
+/** Stellar amounts: max 7 decimal places as string. */
+export function toStellarAmount(value: number): string {
+  if (!(value > 0) || !Number.isFinite(value)) {
+    throw new Error("Invalid payment amount");
+  }
+  const s = value.toFixed(7);
+  const trimmed = s.replace(/\.?0+$/, "");
+  return trimmed.length > 0 ? trimmed : "0.0000001";
+}
+
 export function isValidStellarPublicKey(publicKey: string) {
   return /^G[A-Z2-7]{55}$/.test(publicKey);
 }
@@ -70,15 +89,18 @@ export async function sendAssetPayment(params: {
   assetCode: string;
   issuerPublicKey: string;
   amount: string;
+  memo?: string;
 }) {
   const sourceKeypair = Keypair.fromSecret(params.distributorSecret);
   const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
   const fee = await server.fetchBaseFee();
   const asset = new Asset(params.assetCode, params.issuerPublicKey);
+  const passphrase = getStellarNetworkPassphrase();
+  const memoText = params.memo ?? "StellarGrow";
 
   const tx = new TransactionBuilder(sourceAccount, {
     fee: fee.toString(),
-    networkPassphrase: Networks.PUBLIC,
+    networkPassphrase: passphrase,
   })
     .addOperation(
       Operation.payment({
@@ -87,7 +109,7 @@ export async function sendAssetPayment(params: {
         amount: params.amount,
       }),
     )
-    .addMemo(Memo.text("StellarGrow reward"))
+    .addMemo(Memo.text(memoText.slice(0, 28)))
     .setTimeout(60)
     .build();
 

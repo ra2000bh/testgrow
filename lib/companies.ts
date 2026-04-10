@@ -5,14 +5,15 @@ export type CompanyConfig = {
   industry: string;
   description: string;
   dailyRate: number;
+  /** On-chain asset code (same issuer for all portfolio tokens). */
   assetCode: string;
   issuer: string;
 };
 
-/** GROW and all bonus payouts use this asset from a single issuer wallet. */
+/** App balance / allocation currency (not the same as per-company portfolio tokens). */
 export const GROW_ASSET_CODE = "GROW";
 
-const growIssuer =
+const issuer =
   process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim() || "ISSUER_NOT_SET";
 
 export const companies: CompanyConfig[] = [
@@ -24,8 +25,8 @@ export const companies: CompanyConfig[] = [
     description:
       "24/7 on-demand telehealth platform connecting Australians to a GP within 15 minutes — targeting rural & regional communities with no local doctor access.",
     dailyRate: 0.5,
-    assetCode: GROW_ASSET_CODE,
-    issuer: growIssuer,
+    assetCode: "HOLAH",
+    issuer,
   },
   {
     id: "company-2",
@@ -35,8 +36,8 @@ export const companies: CompanyConfig[] = [
     description:
       "Coaches parents to deliver evidence-based therapy at home for children with autism & developmental delays — making care affordable where waitlists run years long.",
     dailyRate: 0.42,
-    assetCode: GROW_ASSET_CODE,
-    issuer: growIssuer,
+    assetCode: "KITET",
+    issuer,
   },
   {
     id: "company-3",
@@ -46,8 +47,8 @@ export const companies: CompanyConfig[] = [
     description:
       "Smart energy platform that buys and sells renewable electricity for homes at real-time wholesale prices, putting households in control of their energy bills.",
     dailyRate: 0.48,
-    assetCode: GROW_ASSET_CODE,
-    issuer: growIssuer,
+    assetCode: "AMBR",
+    issuer,
   },
   {
     id: "company-4",
@@ -57,8 +58,8 @@ export const companies: CompanyConfig[] = [
     description:
       "Installs residential geothermal heating & cooling systems — replacing fossil fuel furnaces with clean, affordable energy for American homeowners.",
     dailyRate: 0.4,
-    assetCode: GROW_ASSET_CODE,
-    issuer: growIssuer,
+    assetCode: "DNDL",
+    issuer,
   },
   {
     id: "company-5",
@@ -68,8 +69,8 @@ export const companies: CompanyConfig[] = [
     description:
       "Delivers primary care, mental health, and social services to Medicaid patients in underserved US neighbourhoods who are systematically failed by mainstream healthcare.",
     dailyRate: 0.38,
-    assetCode: GROW_ASSET_CODE,
-    issuer: growIssuer,
+    assetCode: "CTBLK",
+    issuer,
   },
   {
     id: "company-6",
@@ -79,8 +80,8 @@ export const companies: CompanyConfig[] = [
     description:
       "Robotic insect farms that convert organic food waste into sustainable animal feed — tackling both food waste and the global protein shortage simultaneously.",
     dailyRate: 0.45,
-    assetCode: GROW_ASSET_CODE,
-    issuer: growIssuer,
+    assetCode: "GOTRA",
+    issuer,
   },
 ];
 

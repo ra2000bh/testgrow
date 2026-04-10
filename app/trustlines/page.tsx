@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { companies } from "@/lib/companies";
 import { getTelegramId } from "@/lib/client";
+import { formatAddress } from "@/lib/stellar";
 import { AnimatedProgress } from "@/components/AnimatedProgress";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -19,6 +20,8 @@ export default function TrustlinesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+
+  const issuerShort = companies[0]?.issuer ? formatAddress(companies[0].issuer) : "";
 
   const sync = useCallback(async () => {
     setError("");
@@ -71,6 +74,15 @@ export default function TrustlinesPage() {
 
   return (
     <section className="space-y-4 pb-4">
+      <Card className="space-y-2 border-[var(--border)]" data-page-child>
+        <p className="sg-text-md font-semibold text-[var(--text-primary)]">Portfolio tokens</p>
+        <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
+          Each company has its own asset code (HOLAH, KITET, AMBR, …) issued from the same Stellar account (
+          {issuerShort}). Add a separate trustline for every token you plan to receive before investing — we send
+          that token to your wallet when you allocate GROW.
+        </p>
+      </Card>
+
       <Card className="space-y-3 border-[var(--border)]" data-page-child>
         <p className="sg-text-sm font-medium text-[var(--text-secondary)]">
           {activeCount} of {companies.length} trustlines active
@@ -93,29 +105,37 @@ export default function TrustlinesPage() {
                 <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">{company.name}</h2>
                 <span className="sg-chip">{company.assetCode}</span>
               </div>
+              <p className="sg-mono sg-text-xs break-all text-[var(--text-muted)]">
+                Issuer · {company.issuer}
+              </p>
               <div className="flex items-center gap-2">
                 {active ? (
                   <>
                     <ShieldCheck size={14} className="text-[var(--success)]" aria-hidden />
-                    <span className="sg-text-sm font-medium text-[var(--success)]">Active</span>
+                    <span className="sg-text-sm font-medium text-[var(--success)]">Trustline active</span>
                   </>
                 ) : (
                   <>
                     <Link2 size={14} className="text-[var(--text-muted)]" aria-hidden />
-                    <span className="sg-text-sm font-medium text-[var(--text-muted)]">Not added</span>
+                    <span className="sg-text-sm font-medium text-[var(--text-muted)]">Not added yet</span>
                   </>
                 )}
               </div>
               {!active ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  type="button"
-                  onClick={() => window.open(lobstr, "_blank", "noopener,noreferrer")}
-                >
-                  <Link2 size={16} aria-hidden />
-                  <span>Add in Lobstr</span>
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    type="button"
+                    onClick={() => window.open(lobstr, "_blank", "noopener,noreferrer")}
+                  >
+                    <Link2 size={16} aria-hidden />
+                    <span>Open in Lobstr</span>
+                  </Button>
+                  <p className="sg-text-xs text-[var(--text-muted)] sm:self-center">
+                    On testnet, add the asset manually in Solar / laboratory with this code and issuer.
+                  </p>
+                </div>
               ) : null}
             </Card>
           );

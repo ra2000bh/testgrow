@@ -240,7 +240,13 @@ export default function CompaniesPage() {
                 <span className="font-semibold text-[var(--text-primary)] sg-tabular">
                   {dailyPreview.toFixed(4)}
                 </span>{" "}
-                {company.assetCode} daily
+                {company.assetCode} daily (in-app accrual)
+              </p>
+              <p className="sg-text-xs text-[var(--text-muted)]">
+                Confirm runs on Stellar: we send{" "}
+                <span className="font-medium text-[var(--text-secondary)]">{company.assetCode}</span> to your linked
+                wallet <span className="font-medium text-[var(--text-secondary)]">1:1</span> with the GROW you commit
+                (trustline required).
               </p>
               <div className="flex gap-2">
                 <Button variant="ghost" className="flex-1" onClick={() => setSelectedCompany(null)}>
