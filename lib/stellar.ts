@@ -116,3 +116,41 @@ export async function sendAssetPayment(params: {
   tx.sign(sourceKeypair);
   return server.submitTransaction(tx);
 }
+
+/** Multiple payment operations in a single transaction (one network fee bundle). */
+export async function sendBatchAssetPayments(params: {
+  distributorSecret: string;
+  destinationPublicKey: string;
+  payments: { assetCode: string; issuerPublicKey: string; amount: string }[];
+  memo?: string;
+}) {
+  if (params.payments.length === 0) {
+    throw new Error("No payments");
+  }
+  const sourceKeypair = Keypair.fromSecret(params.distributorSecret);
+  const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
+  const baseFee = await server.fetchBaseFee();
+  const passphrase = getStellarNetworkPassphrase();
+
+  let builder = new TransactionBuilder(sourceAccount, {
+    fee: baseFee.toString(),
+    networkPassphrase: passphrase,
+  });
+
+  for (const p of params.payments) {
+    const asset = new Asset(p.assetCode, p.issuerPublicKey);
+    builder = builder.addOperation(
+      Operation.payment({
+        destination: params.destinationPublicKey,
+        asset,
+        amount: p.amount,
+      }),
+    );
+  }
+
+  const memoText = params.memo ?? "StellarGrow rewards";
+  const tx = builder.addMemo(Memo.text(memoText.slice(0, 28))).setTimeout(60).build();
+
+  tx.sign(sourceKeypair);
+  return server.submitTransaction(tx);
+}

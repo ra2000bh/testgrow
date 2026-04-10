@@ -22,6 +22,8 @@ export default function CompaniesPage() {
   const [amount, setAmount] = useState(0);
   const [sliderVal, setSliderVal] = useState(0);
   const [error, setError] = useState("");
+  const [sheetError, setSheetError] = useState("");
+  const [investSubmitting, setInvestSubmitting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -66,17 +68,35 @@ export default function CompaniesPage() {
   };
 
   const invest = async () => {
+    setSheetError("");
     if (!selectedCompany || !user) return;
-    const res = await fetch("/api/invest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId: getTelegramId(), companyId: selectedCompany, amount }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) return setError(data.message || "Investment failed");
-    setSelectedCompany(null);
-    setAmount(0);
-    reload();
+    setInvestSubmitting(true);
+    try {
+      const res = await fetch("/api/invest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramId: getTelegramId(), companyId: selectedCompany, amount }),
+      });
+      let data: { success?: boolean; message?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setSheetError("Could not read server response.");
+        return;
+      }
+      if (!res.ok || !data.success) {
+        setSheetError(data.message || "Investment failed.");
+        return;
+      }
+      setSelectedCompany(null);
+      setAmount(0);
+      setSliderVal(0);
+      reload();
+    } catch (e) {
+      setSheetError(e instanceof Error ? e.message : "Network error.");
+    } finally {
+      setInvestSubmitting(false);
+    }
   };
 
   const withdrawStake = async (companyId: string, companyName: string) => {
@@ -132,13 +152,14 @@ export default function CompaniesPage() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
                 <p className="sg-text-sm text-[var(--text-secondary)]">
-                  Your investment · {current.toFixed(2)} GROW
+                  GROW staked · {current.toFixed(2)} · earns {c.assetCode} rewards
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={() => {
+                      setSheetError("");
                       setSelectedCompany(c.id);
                       const cap = Math.max(0, user?.growBalance ?? 0);
                       const start = cap > 0 ? cap / 2 : 0;
@@ -235,25 +256,33 @@ export default function CompaniesPage() {
                   className="sg-input"
                 />
               </div>
-              <p className="sg-text-sm text-[var(--text-secondary)]">
-                You will earn{" "}
-                <span className="font-semibold text-[var(--text-primary)] sg-tabular">
-                  {dailyPreview.toFixed(4)}
-                </span>{" "}
-                {company.assetCode} daily (in-app accrual)
+              <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
+                You commit app GROW to this stake. Rewards build as{" "}
+                <span className="font-semibold text-[var(--text-primary)]">{company.assetCode}</span> at{" "}
+                <span className="font-semibold sg-tabular">{company.dailyRate.toFixed(2)}</span> per 1 GROW staked,
+                each ~24 hours (same rates as before). Claim accumulated {company.assetCode} from the{" "}
+                <span className="font-medium">Rewards</span> tab — we send to your Stellar wallet (trustline required).
               </p>
               <p className="sg-text-xs text-[var(--text-muted)]">
-                Confirm runs on Stellar: we send{" "}
-                <span className="font-medium text-[var(--text-secondary)]">{company.assetCode}</span> to your linked
-                wallet <span className="font-medium text-[var(--text-secondary)]">1:1</span> with the GROW you commit
-                (trustline required).
+                Example: with this amount, ~{dailyPreview.toFixed(4)} {company.assetCode} per day while staked
+                (before compounding batches).
               </p>
+              {sheetError ? (
+                <div className="rounded-[var(--radius-md)] border border-[var(--error)] bg-[var(--white)] px-3 py-2">
+                  <p className="sg-text-sm text-[var(--error)]">{sheetError}</p>
+                </div>
+              ) : null}
               <div className="flex gap-2">
                 <Button variant="ghost" className="flex-1" onClick={() => setSelectedCompany(null)}>
                   Cancel
                 </Button>
-                <Button variant="primary" className="flex-[2]" onClick={invest} disabled={amount <= 0}>
-                  Confirm
+                <Button
+                  variant="primary"
+                  className="flex-[2]"
+                  onClick={invest}
+                  disabled={amount <= 0 || investSubmitting}
+                >
+                  {investSubmitting ? "Saving…" : "Confirm"}
                 </Button>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { computePendingReward } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
+import { accountHasTrustline, sendBatchAssetPayments, toStellarAmount } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 
 const schema = z.object({
@@ -19,6 +20,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: "Specify companyId or claimAll." },
         { status: 400, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+
+    const secret = process.env.STELLAR_SECRET_KEY?.trim();
+    if (!secret) {
+      return NextResponse.json(
+        { success: false, message: "Payout wallet is not configured on the server." },
+        { status: 503, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
 
@@ -42,20 +51,67 @@ export async function POST(request: NextRequest) {
       body.claimAll ? true : inv.companyId === body.companyId,
     );
 
-    let claimedAny = false;
+    const payouts: { inv: Investment; pending: number }[] = [];
     for (const inv of list) {
       const pending = computePendingReward(inv);
-      if (pending <= 0) continue;
-      inv.lastRewardAt = new Date();
-      inv.accumulatedReward = 0;
-      claimedAny = true;
+      if (pending > 0) payouts.push({ inv, pending });
     }
 
-    if (!claimedAny) {
+    if (payouts.length === 0) {
       return NextResponse.json(
         { success: false, message: "No rewards to claim." },
         { status: 400, headers: CACHE_PRIVATE_NO_STORE },
       );
+    }
+
+    for (const { inv } of payouts) {
+      const hasLine = await accountHasTrustline(user.publicKey, inv.assetCode, inv.issuer);
+      if (!hasLine) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Add a trustline for ${inv.assetCode} in your Stellar wallet (Trustlines tab), then claim again.`,
+          },
+          { status: 400, headers: CACHE_PRIVATE_NO_STORE },
+        );
+      }
+    }
+
+    let payments: { assetCode: string; issuerPublicKey: string; amount: string }[];
+    try {
+      payments = payouts.map(({ inv, pending }) => ({
+        assetCode: inv.assetCode,
+        issuerPublicKey: inv.issuer,
+        amount: toStellarAmount(pending),
+      }));
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Invalid reward amount." },
+        { status: 400, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+
+    try {
+      await sendBatchAssetPayments({
+        distributorSecret: secret,
+        destinationPublicKey: user.publicKey,
+        payments,
+        memo: "StellarGrow rewards",
+      });
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: unknown }).message)
+          : "Stellar network error";
+      return NextResponse.json(
+        { success: false, message: `Could not send tokens. ${msg.slice(0, 220)}` },
+        { status: 502, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+
+    for (const { inv } of payouts) {
+      inv.lastRewardAt = new Date();
+      inv.accumulatedReward = 0;
     }
 
     await user.save();

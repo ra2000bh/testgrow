@@ -9,6 +9,7 @@ import { LinearProgress } from "@/components/LinearProgress";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { LoadingPulse } from "@/components/LoadingPulse";
+import { companies } from "@/lib/companies";
 import { getTelegramId } from "@/lib/client";
 import { formatHMS } from "@/lib/format-time";
 import { getTelegramUser } from "@/lib/telegram";
@@ -76,6 +77,7 @@ function BatchRow({
   onWithdraw: (companyId: string) => void;
 }) {
   const meta = computeBatchProgress(inv);
+  const companyMeta = companies.find((c) => c.id === inv.companyId);
   const lastIso =
     typeof inv.lastRewardAt === "string"
       ? inv.lastRewardAt
@@ -113,8 +115,19 @@ function BatchRow({
       <LinearProgress percent={meta.batchesReady > 0 ? 100 : meta.progressToNextPercent} />
       <p className="sg-text-sm text-[var(--text-secondary)]">
         {meta.batchesReady > 0
-          ? `${meta.batchesReady} batch${meta.batchesReady === 1 ? "" : "es"} ready — claim anytime`
+          ? `${meta.batchesReady} batch${meta.batchesReady === 1 ? "" : "es"} ready — claim in Rewards`
           : `Next batch in ${countdown}`}
+      </p>
+      <p className="sg-text-xs text-[var(--text-muted)]">
+        Staked {inv.tokensInvested.toFixed(2)} GROW · accrues{" "}
+        {companyMeta ? (
+          <>
+            {companyMeta.dailyRate.toFixed(2)} {inv.assetCode} per GROW / day
+          </>
+        ) : (
+          <>{inv.assetCode} rewards</>
+        )}{" "}
+        (~24h)
       </p>
     </Card>
   );
