@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
-import { Building2, Clock, Download, Gift, MinusCircle, ShieldCheck, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Building2, Clock, Download, Gift, ShieldCheck, TrendingUp } from "lucide-react";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { LinearProgress } from "@/components/LinearProgress";
 import { Button } from "@/components/Button";
@@ -14,7 +14,7 @@ import { getTelegramId } from "@/lib/client";
 import { formatHMS } from "@/lib/format-time";
 import { getTelegramUser } from "@/lib/telegram";
 import { formatAddress } from "@/lib/stellar";
-import { computeBatchProgress, computePendingReward, DAY_MS } from "@/lib/rewards";
+import { computeBatchProgress, computePendingReward, REWARD_ACCRUAL_MS } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { animateListCards, prefersReducedMotion } from "@/lib/animations";
 
@@ -32,8 +32,8 @@ function useNextBatchCountdown(lastRewardAtIso: string, enabled: boolean) {
     const last = new Date(lastRewardAtIso).getTime();
     const tick = () => {
       const elapsed = Date.now() - last;
-      const msInto = elapsed % DAY_MS;
-      const remain = DAY_MS - msInto;
+      const msInto = elapsed % REWARD_ACCRUAL_MS;
+      const remain = REWARD_ACCRUAL_MS - msInto;
       setLabel(formatHMS(remain));
     };
     tick();
@@ -69,15 +69,12 @@ function ReadyDot() {
   );
 }
 
-function BatchRow({
-  inv,
-  onWithdraw,
-}: {
-  inv: Investment;
-  onWithdraw: (companyId: string) => void;
-}) {
+function BatchRow({ inv }: { inv: Investment }) {
+  const router = useRouter();
   const meta = computeBatchProgress(inv);
   const companyMeta = companies.find((c) => c.id === inv.companyId);
+  const rate = companyMeta?.dailyRate ?? 0;
+  const totalDailyReward = inv.tokensInvested * rate;
   const lastIso =
     typeof inv.lastRewardAt === "string"
       ? inv.lastRewardAt
@@ -85,32 +82,19 @@ function BatchRow({
   const countdown = useNextBatchCountdown(lastIso, meta.batchesReady === 0);
 
   return (
-    <Card data-stagger-card className="space-y-3 border-[var(--border)]">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {meta.batchesReady > 0 ? <ReadyDot /> : null}
-          <span className="sg-text-md font-semibold text-[var(--text-primary)]">{inv.companyName}</span>
-          <span className="sg-chip">{inv.assetCode}</span>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="shrink-0 text-[var(--text-muted)]"
-          onClick={() => {
-            if (
-              typeof window !== "undefined" &&
-              window.confirm(
-                `Remove your entire stake in ${inv.companyName}? Principal and any accrued rewards return to your GROW balance.`,
-              )
-            ) {
-              onWithdraw(inv.companyId);
-            }
-          }}
-        >
-          <MinusCircle size={16} aria-hidden />
-          <span>Remove stake</span>
-        </Button>
+    <Card data-stagger-card className="relative space-y-3 border-[var(--border)] pr-11">
+      <button
+        type="button"
+        className="absolute right-2 top-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--background-primary)] hover:text-[var(--text-primary)]"
+        aria-label={`Manage ${inv.companyName} stake on Companies`}
+        onClick={() => router.push(`/companies?highlight=${encodeURIComponent(inv.companyId)}`)}
+      >
+        <ArrowUpRight className="h-5 w-5 min-h-[20px] min-w-[20px] shrink-0" aria-hidden />
+      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {meta.batchesReady > 0 ? <ReadyDot /> : null}
+        <span className="sg-text-md font-semibold text-[var(--text-primary)]">{inv.companyName}</span>
+        <span className="sg-chip">{inv.assetCode}</span>
       </div>
       <LinearProgress percent={meta.batchesReady > 0 ? 100 : meta.progressToNextPercent} />
       <p className="sg-text-sm text-[var(--text-secondary)]">
@@ -118,16 +102,11 @@ function BatchRow({
           ? `${meta.batchesReady} batch${meta.batchesReady === 1 ? "" : "es"} ready — claim in Rewards`
           : `Next batch in ${countdown}`}
       </p>
+      <p className="sg-text-lg font-bold leading-tight text-[var(--text-primary)]">
+        Earning {totalDailyReward.toFixed(2)} {inv.assetCode} / day
+      </p>
       <p className="sg-text-xs text-[var(--text-muted)]">
-        Staked {inv.tokensInvested.toFixed(2)} GROW · accrues{" "}
-        {companyMeta ? (
-          <>
-            {companyMeta.dailyRate.toFixed(2)} {inv.assetCode} per GROW / day
-          </>
-        ) : (
-          <>{inv.assetCode} rewards</>
-        )}{" "}
-        (~24h)
+        GROW staked · {inv.tokensInvested.toFixed(2)} · earns {inv.assetCode} rewards
       </p>
     </Card>
   );
@@ -202,16 +181,6 @@ export default function DashboardPage() {
       body: JSON.stringify({ telegramId: getTelegramId(), claimAll: true }),
     });
     if (res.ok) reload();
-  };
-
-  const withdrawStake = async (companyId: string) => {
-    const res = await fetch("/api/invest/withdraw", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
-    });
-    const data = await res.json();
-    if (res.ok && data.success) reload();
   };
 
   if (!user) {
@@ -299,7 +268,7 @@ export default function DashboardPage() {
         </div>
         <div ref={listRef} className="space-y-3">
           {activeInvestments.map((inv) => (
-            <BatchRow key={inv.companyId} inv={inv} onWithdraw={withdrawStake} />
+            <BatchRow key={inv.companyId} inv={inv} />
           ))}
         </div>
       </section>
@@ -308,20 +277,24 @@ export default function DashboardPage() {
         <Button
           variant="secondary"
           block
-          className="w-full"
+          className="w-full items-start gap-2 text-left [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
           onClick={() => router.push("/companies")}
         >
-          <Building2 size={16} aria-hidden />
+          <span className="inline-flex shrink-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:min-h-[20px] [&>svg]:min-w-[20px]">
+            <Building2 aria-hidden />
+          </span>
           <span>Browse companies</span>
         </Button>
         <Button
           variant="primary"
           block
-          className="w-full"
+          className="w-full items-start gap-2 text-left [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
           onClick={claimAll}
           disabled={totalClaimable <= 0}
         >
-          <Download size={16} aria-hidden />
+          <span className="inline-flex shrink-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:min-h-[20px] [&>svg]:min-w-[20px]">
+            <Download aria-hidden />
+          </span>
           <span>Claim all rewards</span>
         </Button>
       </div>
@@ -335,8 +308,16 @@ export default function DashboardPage() {
         }}
       >
         <div className="pointer-events-auto">
-          <Button variant="primary" block onClick={claimAll} disabled={totalClaimable <= 0}>
-            <Download size={16} aria-hidden />
+          <Button
+            variant="primary"
+            block
+            onClick={claimAll}
+            disabled={totalClaimable <= 0}
+            className="items-start gap-2 text-left [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
+          >
+            <span className="inline-flex shrink-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:min-h-[20px] [&>svg]:min-w-[20px]">
+              <Download aria-hidden />
+            </span>
             <span>Rewards ready — claim all</span>
           </Button>
         </div>

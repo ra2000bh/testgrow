@@ -12,8 +12,8 @@ const schema = z.object({
 });
 
 /**
- * Allocate app GROW to a company stake. Company tokens accrue on a 24h cadence; users claim
- * on-chain payouts from the Rewards tab (not sent here).
+ * Allocate app GROW to a company stake. Reward tokens accrue per REWARD_ACCRUAL_MS; users claim
+ * on-chain payouts from the Rewards tab (publisher wallet — not sent here).
  */
 export async function POST(request: NextRequest) {
   try {

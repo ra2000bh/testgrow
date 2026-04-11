@@ -147,8 +147,8 @@ export default function RewardsPage() {
     <section className="space-y-4 pb-28">
       {rows.length > 0 ? (
         <p className="sg-text-xs text-[var(--text-muted)] px-0.5" data-page-child>
-          Claim sends accrued tokens to your wallet. Claim all bundles every asset with a balance into one Stellar
-          transaction when possible.
+          Claim sends accrued reward tokens to your wallet. “Claim all” uses one Stellar transaction with multiple
+          payments when you have several assets to receive.
         </p>
       ) : null}
       {rows.length === 0 ? (
@@ -156,8 +156,8 @@ export default function RewardsPage() {
           <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">No rewards yet</h2>
           <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
             Allocate app GROW on the Companies tab first. Each company pays rewards in its own token (HOLAH,
-            KITET, …) using the daily rate per GROW staked. Amounts stack in ~24h batches — claim here to receive
-            those tokens in your Stellar wallet (add trustlines first).
+            KITET, …) at the published rate per GROW staked. Accruals stack each interval — claim here to receive
+            tokens in your Stellar wallet (trustlines required).
           </p>
           <Link href="/companies" className="block">
             <Button variant="primary" block type="button">
@@ -187,7 +187,7 @@ export default function RewardsPage() {
               <RewardFigure value={pending} trackId={inv.companyId} />
               <p className="sg-text-sm text-[var(--text-muted)]">
                 {company
-                  ? `~${company.dailyRate.toFixed(2)} ${inv.assetCode} per GROW staked per day · builds every ~24h`
+                  ? `${company.dailyRate.toFixed(2)} ${inv.assetCode} per GROW staked · per accrual interval`
                   : null}
               </p>
               {sentId === inv.companyId ? (

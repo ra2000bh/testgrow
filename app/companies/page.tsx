@@ -3,7 +3,7 @@
 import gsap from "gsap";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { companies } from "@/lib/companies";
-import { companyInitials, countryFlagEmoji } from "@/lib/company-display";
+import { companyInitials } from "@/lib/company-display";
 import { getTelegramId } from "@/lib/client";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
@@ -38,6 +38,20 @@ export default function CompaniesPage() {
     reload();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const highlight = params.get("highlight");
+    if (!highlight) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(`company-${highlight}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [user]);
+
   useLayoutEffect(() => {
     const s = sheetRef.current;
     const b = backdropRef.current;
@@ -59,7 +73,6 @@ export default function CompaniesPage() {
 
   const company = companies.find((c) => c.id === selectedCompany);
   const maxGrow = user?.growBalance ?? 0;
-
 
   const syncSlider = (v: number) => {
     const x = Math.max(0, Math.min(maxGrow, v));
@@ -121,6 +134,9 @@ export default function CompaniesPage() {
 
   const dailyPreview = company ? amount * company.dailyRate : 0;
 
+  const compactBtn =
+    "!min-h-[36px] shrink-0 gap-1 px-2.5 py-1.5 text-[12px] leading-tight font-semibold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:min-h-4 [&>svg]:min-w-4 [&>svg]:shrink-0";
+
   return (
     <section className="relative pb-4">
       <div ref={listRef} className="space-y-3">
@@ -128,69 +144,76 @@ export default function CompaniesPage() {
           const current = user?.investments.find((inv) => inv.companyId === c.id)?.tokensInvested || 0;
           const lobstr = `https://lobstr.co/assets/${c.assetCode}:${c.issuer}`;
           return (
-            <Card key={c.id} data-stagger-card className="space-y-3 border-[var(--border)]" data-page-child>
-              <div className="flex items-start gap-3">
+            <Card
+              key={c.id}
+              id={`company-${c.id}`}
+              data-stagger-card
+              className="space-y-4 border-[var(--border)]"
+              data-page-child
+            >
+              <div className="flex gap-3">
                 <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-lg)] sg-text-sm font-semibold text-[var(--white)]"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] text-[12px] font-semibold text-[var(--white)]"
                   style={{ background: "var(--primary-green)" }}
                   aria-hidden
                 >
                   {companyInitials(c.name)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">{c.name}</h2>
-                    <span className="text-base" aria-hidden>
-                      {countryFlagEmoji(c.country)}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <h2 className="sg-text-md font-bold text-[var(--text-primary)]">{c.name}</h2>
+                    <span className="sg-chip">{c.country}</span>
                     <span className="sg-chip">{c.industry}</span>
                   </div>
-                  <p className="sg-text-lg mt-2 font-semibold text-[var(--text-primary)]">
+                  <p className="sg-text-xl mt-2 font-bold leading-[var(--text-lg-leading)] text-[var(--text-primary)]">
                     +{c.dailyRate.toFixed(2)} {c.assetCode} per GROW · daily
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
-                <p className="sg-text-sm text-[var(--text-secondary)]">
-                  GROW staked · {current.toFixed(2)} · earns {c.assetCode} rewards
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setSheetError("");
-                      setSelectedCompany(c.id);
-                      const cap = Math.max(0, user?.growBalance ?? 0);
-                      const start = cap > 0 ? cap / 2 : 0;
-                      setSliderVal(start);
-                      setAmount(start);
-                    }}
-                    disabled={!user || maxGrow <= 0}
-                  >
-                    <TrendingUp size={16} aria-hidden />
-                    <span>Invest</span>
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    type="button"
-                    disabled={!user || current <= 0}
-                    onClick={() => withdrawStake(c.id, c.name)}
-                  >
-                    <MinusCircle size={16} aria-hidden />
-                    <span>Remove stake</span>
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    type="button"
-                    onClick={() => window.open(lobstr, "_blank", "noopener,noreferrer")}
-                  >
-                    <Link2 size={16} aria-hidden />
-                    <span>Trustline</span>
-                  </Button>
-                </div>
+
+              <p className="sg-text-sm text-[var(--text-secondary)]">
+                GROW staked · {current.toFixed(2)} · earns {c.assetCode} rewards
+              </p>
+
+              <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className={compactBtn}
+                  onClick={() => {
+                    setSheetError("");
+                    setSelectedCompany(c.id);
+                    const cap = Math.max(0, user?.growBalance ?? 0);
+                    const start = cap > 0 ? cap / 2 : 0;
+                    setSliderVal(start);
+                    setAmount(start);
+                  }}
+                  disabled={!user || maxGrow <= 0}
+                >
+                  <TrendingUp aria-hidden />
+                  <span>Invest</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  className={compactBtn}
+                  disabled={!user || current <= 0}
+                  onClick={() => withdrawStake(c.id, c.name)}
+                >
+                  <MinusCircle aria-hidden />
+                  <span>Remove stake</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  className={compactBtn}
+                  onClick={() => window.open(lobstr, "_blank", "noopener,noreferrer")}
+                >
+                  <Link2 aria-hidden />
+                  <span>Trustline</span>
+                </Button>
               </div>
             </Card>
           );
@@ -257,15 +280,14 @@ export default function CompaniesPage() {
                 />
               </div>
               <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
-                You commit app GROW to this stake. Rewards build as{" "}
+                You commit app GROW to this stake. Rewards accrue as{" "}
                 <span className="font-semibold text-[var(--text-primary)]">{company.assetCode}</span> at{" "}
-                <span className="font-semibold sg-tabular">{company.dailyRate.toFixed(2)}</span> per 1 GROW staked,
-                each ~24 hours (same rates as before). Claim accumulated {company.assetCode} from the{" "}
-                <span className="font-medium">Rewards</span> tab — we send to your Stellar wallet (trustline required).
+                <span className="font-semibold sg-tabular">{company.dailyRate.toFixed(2)}</span> per 1 GROW staked per
+                accrual period. Claim from <span className="font-medium">Rewards</span> — payouts are sent from the
+                publisher wallet (trustline required).
               </p>
               <p className="sg-text-xs text-[var(--text-muted)]">
-                Example: with this amount, ~{dailyPreview.toFixed(4)} {company.assetCode} per day while staked
-                (before compounding batches).
+                At this amount: ~{dailyPreview.toFixed(4)} {company.assetCode} per accrual interval while staked.
               </p>
               {sheetError ? (
                 <div className="rounded-[var(--radius-md)] border border-[var(--error)] bg-[var(--white)] px-3 py-2">

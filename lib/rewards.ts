@@ -1,12 +1,17 @@
 import { companies } from "@/lib/companies";
 import type { Investment } from "@/models/User";
 
-export const DAY_MS = 24 * 60 * 60 * 1000;
+// DEV MODE: rewards every 1 minute — change to 24h for production
+export const REWARD_ACCRUAL_MS = 60 * 1000;
+// export const REWARD_ACCRUAL_MS = 24 * 60 * 60 * 1000;
 
-/** Discrete daily batches: floor((now - lastRewardAt) / 86400000) */
+/** @deprecated use REWARD_ACCRUAL_MS */
+export const DAY_MS = REWARD_ACCRUAL_MS;
+
+/** Discrete accrual batches: floor((now - lastRewardAt) / interval) */
 export function computeBatchesReady(investment: Investment): number {
   const last = new Date(investment.lastRewardAt).getTime();
-  return Math.max(0, Math.floor((Date.now() - last) / DAY_MS));
+  return Math.max(0, Math.floor((Date.now() - last) / REWARD_ACCRUAL_MS));
 }
 
 export function computeRewardPerBatch(investment: Investment): number {
@@ -15,7 +20,7 @@ export function computeRewardPerBatch(investment: Investment): number {
   return investment.tokensInvested * company.dailyRate;
 }
 
-/** Total claimable from stacked daily batches (no cap). */
+/** Total claimable from stacked accrual batches (no cap). */
 export function computePendingReward(investment: Investment): number {
   return computeBatchesReady(investment) * computeRewardPerBatch(investment);
 }
@@ -34,17 +39,17 @@ export function computeBatchProgress(investment: Investment): {
       rewardPerBatch: 0,
       totalPending: 0,
       progressToNextPercent: 0,
-      msUntilNextBatch: DAY_MS,
+      msUntilNextBatch: REWARD_ACCRUAL_MS,
     };
   }
   const last = new Date(investment.lastRewardAt).getTime();
   const elapsed = Math.max(0, Date.now() - last);
-  const batchesReady = Math.floor(elapsed / DAY_MS);
+  const batchesReady = Math.floor(elapsed / REWARD_ACCRUAL_MS);
   const rewardPerBatch = investment.tokensInvested * company.dailyRate;
   const totalPending = batchesReady * rewardPerBatch;
-  const msIntoCurrent = elapsed % DAY_MS;
-  const progressToNextPercent = batchesReady > 0 ? 100 : (msIntoCurrent / DAY_MS) * 100;
-  const msUntilNextBatch = batchesReady > 0 ? 0 : DAY_MS - msIntoCurrent;
+  const msIntoCurrent = elapsed % REWARD_ACCRUAL_MS;
+  const progressToNextPercent = batchesReady > 0 ? 100 : (msIntoCurrent / REWARD_ACCRUAL_MS) * 100;
+  const msUntilNextBatch = batchesReady > 0 ? 0 : REWARD_ACCRUAL_MS - msIntoCurrent;
   return {
     batchesReady,
     rewardPerBatch,

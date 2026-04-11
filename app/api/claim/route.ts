@@ -23,10 +23,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const secret = process.env.STELLAR_SECRET_KEY?.trim();
-    if (!secret) {
+    const publisherSecret = process.env.PUBLISHER_SECRET_KEY?.trim();
+    if (!publisherSecret) {
       return NextResponse.json(
-        { success: false, message: "Payout wallet is not configured on the server." },
+        {
+          success: false,
+          message: "Publisher (reward) wallet is not configured. Set PUBLISHER_SECRET_KEY on the server.",
+        },
         { status: 503, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await sendBatchAssetPayments({
-        distributorSecret: secret,
+        distributorSecret: publisherSecret,
         destinationPublicKey: user.publicKey,
         payments,
         memo: "StellarGrow rewards",

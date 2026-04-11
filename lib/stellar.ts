@@ -117,7 +117,10 @@ export async function sendAssetPayment(params: {
   return server.submitTransaction(tx);
 }
 
-/** Multiple payment operations in a single transaction (one network fee bundle). */
+/**
+ * Multiple payment operations in one transaction. Sign with the **publisher** (distributor) secret — not the
+ * issuer. Asset issuer is set on each `Asset` only.
+ */
 export async function sendBatchAssetPayments(params: {
   distributorSecret: string;
   destinationPublicKey: string;
