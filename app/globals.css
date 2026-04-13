@@ -1,20 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background-primary: #f9faf7;
-  --background-secondary: #f0f4ee;
-  --background-dark: #0f1a0f;
-  --primary-green: #2d6a4f;
-  --primary-green-hover: #245c43;
-  --accent-green: #52b788;
-  --success: #40916c;
-  --warning: #f4a261;
-  --error: #e63946;
-  --text-primary: #1a1a1a;
-  --text-secondary: #4a5568;
-  --text-muted: #9aa5b1;
-  --border: #e2eae0;
-  --white: #ffffff;
+  /* App-wide terminal theme (aligned with dashboard) */
+  --background-primary: #06090d;
+  --background-secondary: rgba(15, 23, 35, 0.92);
+  --background-dark: #030509;
+  --primary-green: #2dd4bf;
+  --primary-green-hover: #5eead4;
+  --accent-green: #34d399;
+  --success: #34d399;
+  --warning: #e8c547;
+  --error: #f87171;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: rgba(94, 118, 140, 0.38);
+  --white: #0f141c;
+  --text-on-primary: #041016;
+  --input-bg: #0f141c;
+  --input-border: rgba(94, 118, 140, 0.45);
+
+  /* Dashboard / chart tokens (same palette, shared with components) */
+  --dash-bg: var(--background-primary);
+  --dash-surface: rgba(12, 18, 26, 0.78);
+  --dash-surface-hover: rgba(22, 32, 44, 0.92);
+  --dash-border: var(--border);
+  --dash-border-bright: rgba(120, 200, 190, 0.55);
+  --dash-gold: #e8c547;
+  --dash-teal: #2dd4bf;
+  --dash-teal-dim: rgba(45, 212, 191, 0.55);
+  --dash-red: #f87171;
+  --dash-green: #34d399;
+  --dash-muted: rgba(148, 163, 184, 0.88);
+  --dash-label: rgba(100, 116, 139, 0.95);
+  --dash-text: var(--text-primary);
+  --dash-chart-grid: rgba(71, 85, 105, 0.28);
+  --dash-tooltip-bg: rgba(8, 12, 18, 0.97);
 
   --text-xs: 11px;
   --text-xs-leading: 1.4;
@@ -37,8 +58,8 @@
   --radius-xl: 12px;
   --radius-full: 9999px;
 
-  --focus-ring: 0 0 0 3px rgba(45, 106, 79, 0.15);
-  --overlay-scrim: rgba(15, 26, 15, 0.45);
+  --focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.22);
+  --overlay-scrim: rgba(2, 6, 12, 0.72);
 }
 
 @theme inline {
@@ -77,6 +98,7 @@
 
 html {
   height: 100%;
+  color-scheme: dark;
 }
 
 body {
@@ -130,12 +152,31 @@ body {
 }
 
 .sg-app-shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100dvh;
   background: var(--background-primary);
   padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
 }
 
+.sg-app-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.35), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 80%, rgba(232, 197, 71, 0.1), transparent 50%),
+    linear-gradient(165deg, rgba(15, 23, 42, 0.85) 0%, transparent 42%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  background-size: auto, auto, auto, 220px 220px;
+}
+
 .sg-main {
+  position: relative;
+  z-index: 1;
   flex: 1;
   padding-left: 16px;
   padding-right: 16px;
@@ -144,22 +185,33 @@ body {
 }
 
 .sg-card {
-  background: var(--background-secondary);
+  background: var(--dash-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .sg-card:hover {
+    border-color: var(--dash-border-bright);
+    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.08);
+  }
 }
 
 .sg-input {
   height: 48px;
   width: 100%;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--input-border);
   border-radius: var(--radius-md);
   padding: 0 14px;
   font-size: var(--text-base);
   line-height: var(--text-base-leading);
   color: var(--text-primary);
-  background: var(--white);
+  background: var(--input-bg);
 }
 
 .sg-input:focus {
@@ -189,7 +241,9 @@ body {
   max-width: 480px;
   height: calc(64px + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--background-dark);
+  background: rgba(3, 5, 9, 0.94);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(10px);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: center;
@@ -227,7 +281,7 @@ body {
 
 .sg-btn-primary {
   background: var(--primary-green);
-  color: var(--white);
+  color: var(--text-on-primary);
 }
 
 .sg-btn-primary:hover:not(:disabled) {
@@ -241,7 +295,7 @@ body {
 }
 
 .sg-btn-secondary:hover:not(:disabled) {
-  background: var(--background-secondary);
+  background: rgba(45, 212, 191, 0.08);
 }
 
 .sg-btn-ghost {
@@ -253,7 +307,7 @@ body {
 
 .sg-btn-destructive {
   background: var(--error);
-  color: var(--white);
+  color: #fff;
 }
 
 .sg-btn-sm {
@@ -276,7 +330,7 @@ body {
   font-size: var(--text-xs);
   line-height: var(--text-xs-leading);
   font-weight: 500;
-  background: var(--background-primary);
+  background: rgba(30, 41, 59, 0.55);
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
@@ -291,25 +345,10 @@ body {
   }
 }
 
-/* —— Bloomberg-style dashboard (scoped; rest of app keeps light tokens) —— */
+/* —— Dashboard page wrapper (tokens live on :root) —— */
 .dash-root {
-  --dash-bg: #06090d;
-  --dash-surface: rgba(12, 18, 26, 0.78);
-  --dash-surface-hover: rgba(22, 32, 44, 0.92);
-  --dash-border: rgba(94, 118, 140, 0.35);
-  --dash-border-bright: rgba(120, 200, 190, 0.55);
-  --dash-gold: #e8c547;
-  --dash-teal: #2dd4bf;
-  --dash-teal-dim: rgba(45, 212, 191, 0.55);
-  --dash-red: #f87171;
-  --dash-green: #34d399;
-  --dash-muted: rgba(148, 163, 184, 0.85);
-  --dash-label: rgba(100, 116, 139, 0.95);
-  --dash-text: #e2e8f0;
-  --dash-chart-grid: rgba(71, 85, 105, 0.25);
-  --dash-tooltip-bg: rgba(8, 12, 18, 0.96);
   color: var(--dash-text);
-  background: var(--dash-bg);
+  background: transparent;
   font-variant-numeric: tabular-nums;
 }
 

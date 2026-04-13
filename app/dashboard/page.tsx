@@ -20,6 +20,7 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStrip";
 import { PortfolioChartPanel } from "@/components/dashboard/PortfolioChartPanel";
 import { companies, GROW_ASSET_CODE } from "@/lib/companies";
+import { GROW_TO_XLM_RATE, growBalanceToXlmDisplay } from "@/lib/grow-xlm";
 import { disconnectSession, getTelegramId } from "@/lib/client";
 import {
   buildPortfolioChartSeries,
@@ -251,7 +252,7 @@ export default function DashboardPage() {
     return !user.investments.some((i) => (pendingByCompanyId[i.companyId] ?? 0) > 0.0000001);
   }, [user, pendingByCompanyId, claimingId]);
 
-  const growUsd = (localPrices[GROW_ASSET_CODE] ?? 0) * (user?.growBalance ?? 0);
+  const growXlmApprox = growBalanceToXlmDisplay(user?.growBalance ?? 0);
 
   const lastSyncLabel = useMemo(() => {
     void clock;
@@ -419,7 +420,9 @@ export default function DashboardPage() {
             <p className="dash-tabular text-[20px] font-semibold text-[var(--dash-text)]">
               {user.growBalance.toFixed(4)} <span className="text-[13px] text-[var(--dash-muted)]">{GROW_ASSET_CODE}</span>
             </p>
-            <p className="dash-tabular mt-1 text-[12px] text-[var(--dash-muted)]">≈ ${growUsd.toFixed(2)} USD</p>
+            <p className="dash-tabular mt-1 text-[12px] leading-snug text-[var(--dash-muted)]">
+              ≈ {growXlmApprox} XLM <span className="text-[var(--dash-label)]">(1 {GROW_ASSET_CODE} ≈ {GROW_TO_XLM_RATE} XLM)</span>
+            </p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--dash-border)] pt-3">
               <span className="text-[11px] text-[var(--dash-muted)]">{lastSyncLabel}</span>
               <button

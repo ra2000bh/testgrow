@@ -2,7 +2,7 @@
 
 import gsap from "gsap";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { companies } from "@/lib/companies";
+import { companies, companyBrandGradient } from "@/lib/companies";
 import { companyInitials } from "@/lib/company-display";
 import { getTelegramId } from "@/lib/client";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -153,8 +153,8 @@ export default function CompaniesPage() {
             >
               <div className="flex gap-3">
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] text-[12px] font-semibold text-[var(--white)]"
-                  style={{ background: "var(--primary-green)" }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] text-[12px] font-semibold text-white"
+                  style={{ background: companyBrandGradient(c) }}
                   aria-hidden
                 >
                   {companyInitials(c.name)}
@@ -237,7 +237,7 @@ export default function CompaniesPage() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[51] flex justify-center">
         <div
           ref={sheetRef}
-          className="pointer-events-auto w-full max-w-[480px] rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--background-secondary)] px-4 pb-8 pt-4"
+          className="pointer-events-auto w-full max-w-[480px] rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-8 pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
           role="dialog"
           aria-modal="true"
           aria-label="Invest"
@@ -290,7 +290,7 @@ export default function CompaniesPage() {
                 At this amount: ~{dailyPreview.toFixed(4)} {company.assetCode} per accrual interval while staked.
               </p>
               {sheetError ? (
-                <div className="rounded-[var(--radius-md)] border border-[var(--error)] bg-[var(--white)] px-3 py-2">
+                <div className="rounded-[var(--radius-md)] border border-[var(--error)] bg-[rgba(248,113,113,0.1)] px-3 py-2">
                   <p className="sg-text-sm text-[var(--error)]">{sheetError}</p>
                 </div>
               ) : null}

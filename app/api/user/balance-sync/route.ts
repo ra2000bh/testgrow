@@ -12,6 +12,10 @@ const schema = z.object({
   telegramId: z.string().min(1),
 });
 
+/**
+ * Marks a successful "sync" timestamp and optionally reads chain GROW for display.
+ * Does **not** overwrite in-app `growBalance` (MongoDB ledger used for stakes/invest).
+ */
 export async function POST(request: NextRequest) {
   try {
     const { telegramId } = schema.parse(await request.json());
@@ -47,22 +51,17 @@ export async function POST(request: NextRequest) {
     }
 
     const issuer = process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim();
-    if (!issuer) {
-      return NextResponse.json(
-        { success: false, message: "Issuer address is not configured." },
-        { status: 503, headers: CACHE_PRIVATE_NO_STORE },
-      );
+    let chainGrowBalance: number | null = null;
+    if (issuer) {
+      chainGrowBalance = await getIssuedAssetBalance(user.publicKey, GROW_ASSET_CODE, issuer);
+      if (chainGrowBalance === null) {
+        return NextResponse.json(
+          { success: false, message: "Could not read account from Stellar Horizon." },
+          { status: 502, headers: CACHE_PRIVATE_NO_STORE },
+        );
+      }
     }
 
-    const onChain = await getIssuedAssetBalance(user.publicKey, GROW_ASSET_CODE, issuer);
-    if (onChain === null) {
-      return NextResponse.json(
-        { success: false, message: "Could not read account from Stellar Horizon." },
-        { status: 502, headers: CACHE_PRIVATE_NO_STORE },
-      );
-    }
-
-    user.growBalance = onChain;
     user.lastBalanceSyncAt = new Date();
     await user.save();
 
@@ -70,6 +69,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         growBalance: user.growBalance,
+        chainGrowBalance,
         lastBalanceSyncAt: user.lastBalanceSyncAt.toISOString(),
       },
       { headers: CACHE_PRIVATE_NO_STORE },
