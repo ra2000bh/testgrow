@@ -8,10 +8,22 @@ export type CompanyConfig = {
   /** On-chain asset code (same issuer for all portfolio tokens). */
   assetCode: string;
   issuer: string;
+  /** UI gradient stops for allocation / avatars (hex). */
+  brandColorFrom: string;
+  brandColorTo: string;
 };
 
 /** App balance / allocation currency (not the same as per-company portfolio tokens). */
 export const GROW_ASSET_CODE = "GROW";
+
+export const GROW_BRAND = {
+  from: "#34d399",
+  to: "#047857",
+} as const;
+
+export function companyBrandGradient(c: CompanyConfig): string {
+  return `linear-gradient(135deg, ${c.brandColorFrom}, ${c.brandColorTo})`;
+}
 
 const issuer =
   process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim() || "ISSUER_NOT_SET";
@@ -27,6 +39,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.5,
     assetCode: "HOLAH",
     issuer,
+    brandColorFrom: "#5eead4",
+    brandColorTo: "#0d9488",
   },
   {
     id: "company-2",
@@ -38,6 +52,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.42,
     assetCode: "KITET",
     issuer,
+    brandColorFrom: "#a78bfa",
+    brandColorTo: "#5b21b6",
   },
   {
     id: "company-3",
@@ -49,6 +65,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.48,
     assetCode: "AMBR",
     issuer,
+    brandColorFrom: "#fcd34d",
+    brandColorTo: "#b45309",
   },
   {
     id: "company-4",
@@ -60,6 +78,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.4,
     assetCode: "DNDL",
     issuer,
+    brandColorFrom: "#86efac",
+    brandColorTo: "#166534",
   },
   {
     id: "company-5",
@@ -71,6 +91,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.38,
     assetCode: "CTBLK",
     issuer,
+    brandColorFrom: "#93c5fd",
+    brandColorTo: "#1e3a8a",
   },
   {
     id: "company-6",
@@ -82,6 +104,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.45,
     assetCode: "GOTRA",
     issuer,
+    brandColorFrom: "#fdba74",
+    brandColorTo: "#9a3412",
   },
 ];
 

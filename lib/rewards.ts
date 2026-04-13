@@ -20,6 +20,15 @@ export function computeRewardPerBatch(investment: Investment): number {
   return investment.tokensInvested * company.dailyRate;
 }
 
+/** Reward tokens accrued per minute (continuous UI projection between batch boundaries). */
+export function computeRewardRatePerMinute(investment: Investment): number {
+  if (investment.tokensInvested <= 0) return 0;
+  const perBatch = computeRewardPerBatch(investment);
+  const minutesPerBatch = REWARD_ACCRUAL_MS / 60_000;
+  if (minutesPerBatch <= 0) return 0;
+  return perBatch / minutesPerBatch;
+}
+
 /** Total claimable from stacked accrual batches (no cap). */
 export function computePendingReward(investment: Investment): number {
   return computeBatchesReady(investment) * computeRewardPerBatch(investment);

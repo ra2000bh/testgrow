@@ -32,6 +32,7 @@ const UserSchema = new Schema(
     verificationExpiry: { type: Date, required: true },
     growBalance: { type: Number, default: 1000 },
     totalInvested: { type: Number, default: 0 },
+    lastBalanceSyncAt: { type: Date, required: false },
     investments: { type: [InvestmentSchema], default: [] },
     trustlines: { type: [TrustlineSchema], default: [] },
   },
@@ -57,6 +58,7 @@ export type UserDoc = {
   verificationExpiry: Date;
   growBalance: number;
   totalInvested: number;
+  lastBalanceSyncAt?: Date;
   investments: Investment[];
   trustlines: { companyId: string; confirmed: boolean; lastCheckedAt?: Date }[];
 };

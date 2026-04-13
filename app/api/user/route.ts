@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import { computePendingReward } from "@/lib/rewards";
+import { computePendingReward, computeRewardRatePerMinute } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 
@@ -26,12 +26,18 @@ export async function GET(request: NextRequest) {
     const enrichedInvestments = (user.investments as Investment[]).map((investment) => ({
       ...investment,
       accumulatedReward: computePendingReward(investment),
+      ratePerMinute: computeRewardRatePerMinute(investment),
     }));
+
+    const u = user as typeof user & { lastBalanceSyncAt?: Date };
 
     return NextResponse.json(
       {
         ...user,
         memoWallet: process.env.STELLAR_MEMO_WALLET_PUBLIC_KEY || "",
+        lastBalanceSyncAt: u.lastBalanceSyncAt
+          ? new Date(u.lastBalanceSyncAt).toISOString()
+          : null,
         investments: enrichedInvestments,
       },
       { headers: CACHE_PRIVATE_NO_STORE },

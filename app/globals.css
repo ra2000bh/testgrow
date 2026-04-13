@@ -290,3 +290,170 @@ body {
     will-change: auto;
   }
 }
+
+/* —— Bloomberg-style dashboard (scoped; rest of app keeps light tokens) —— */
+.dash-root {
+  --dash-bg: #06090d;
+  --dash-surface: rgba(12, 18, 26, 0.78);
+  --dash-surface-hover: rgba(22, 32, 44, 0.92);
+  --dash-border: rgba(94, 118, 140, 0.35);
+  --dash-border-bright: rgba(120, 200, 190, 0.55);
+  --dash-gold: #e8c547;
+  --dash-teal: #2dd4bf;
+  --dash-teal-dim: rgba(45, 212, 191, 0.55);
+  --dash-red: #f87171;
+  --dash-green: #34d399;
+  --dash-muted: rgba(148, 163, 184, 0.85);
+  --dash-label: rgba(100, 116, 139, 0.95);
+  --dash-text: #e2e8f0;
+  --dash-chart-grid: rgba(71, 85, 105, 0.25);
+  --dash-tooltip-bg: rgba(8, 12, 18, 0.96);
+  color: var(--dash-text);
+  background: var(--dash-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-root .dash-bg-image {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.35), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 80%, rgba(232, 197, 71, 0.12), transparent 50%),
+    linear-gradient(165deg, rgba(15, 23, 42, 0.9) 0%, transparent 45%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  background-size: auto, auto, auto, 220px 220px;
+}
+
+.dash-root .dash-inner {
+  position: relative;
+  z-index: 1;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.dash-section-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--dash-label);
+}
+
+.dash-tile {
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .dash-tile:hover {
+    transform: scale(1.01);
+    border-color: var(--dash-border-bright);
+    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.12);
+  }
+}
+
+.dash-tile-wide {
+  grid-column: 1 / -1;
+}
+
+.dash-tabular {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-marquee-wrap {
+  overflow: hidden;
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-md);
+  background: rgba(8, 12, 18, 0.65);
+}
+
+.dash-marquee {
+  display: flex;
+  width: max-content;
+  animation: dash-marquee 48s linear infinite;
+}
+
+.dash-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes dash-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-marquee {
+    animation: none;
+  }
+}
+
+.dash-skeleton {
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.5) 0%,
+    rgba(51, 65, 85, 0.55) 50%,
+    rgba(30, 41, 59, 0.5) 100%
+  );
+  background-size: 200% 100%;
+  animation: dash-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes dash-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes dash-pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(45, 212, 191, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0);
+  }
+}
+
+.dash-pulse-dot {
+  animation: dash-pulse-dot 1.8s ease-out infinite;
+}
+
+@keyframes dash-insight-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dash-insight-line {
+  animation: dash-insight-enter 0.45s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-insight-line {
+    animation: none;
+  }
+}

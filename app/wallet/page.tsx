@@ -116,10 +116,12 @@ export default function WalletPage() {
     const pk = user.publicKey;
     if (prevVerifyPublicKey.current === pk) return;
     prevVerifyPublicKey.current = pk;
-    setStreamStatus("listening");
-    setStepFill(0);
-    setStreamError("");
-    setCheckMessage("");
+    queueMicrotask(() => {
+      setStreamStatus("listening");
+      setStepFill(0);
+      setStreamError("");
+      setCheckMessage("");
+    });
   }, [user?.publicKey, user?.isVerified]);
 
   useEffect(() => {

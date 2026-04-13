@@ -90,10 +90,10 @@ export default function RewardsPage() {
     requestAnimationFrame(() => animateListCards(listRef.current));
   }, [rows]);
 
-  const totalPending = useMemo(
-    () => rows.reduce((s, r) => s + computePendingReward(r), 0),
-    [rows, tick],
-  );
+  const totalPending = useMemo(() => {
+    void tick;
+    return rows.reduce((s, r) => s + computePendingReward(r), 0);
+  }, [rows, tick]);
 
   const runCountDown = (el: HTMLElement | null, from: number) => {
     if (!el) return;

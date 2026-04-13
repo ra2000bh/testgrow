@@ -39,6 +39,31 @@ export function formatAddress(address: string) {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
+export async function getIssuedAssetBalance(
+  publicKey: string,
+  assetCode: string,
+  issuerPublicKey: string,
+): Promise<number | null> {
+  try {
+    const account = await server.loadAccount(publicKey);
+    const row = account.balances.find((b) => {
+      if (b.asset_type === "native") return false;
+      if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
+      return b.asset_code === assetCode && b.asset_issuer === issuerPublicKey;
+    });
+    if (!row || !("balance" in row)) return 0;
+    const n = Number(row.balance);
+    return Number.isFinite(n) ? n : null;
+  } catch (e: unknown) {
+    const status =
+      e && typeof e === "object" && "response" in e
+        ? (e as { response?: { status?: number } }).response?.status
+        : undefined;
+    if (status === 404) return 0;
+    return null;
+  }
+}
+
 export async function accountHasTrustline(
   publicKey: string,
   assetCode: string,

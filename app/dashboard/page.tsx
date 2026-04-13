@@ -1,22 +1,38 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import gsap from "gsap";
-import { ArrowUpRight, Building2, Clock, Download, Gift, ShieldCheck, TrendingUp } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  LogOut,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+} from "lucide-react";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { LinearProgress } from "@/components/LinearProgress";
-import { Button } from "@/components/Button";
-import { Card } from "@/components/Card";
-import { LoadingPulse } from "@/components/LoadingPulse";
-import { companies } from "@/lib/companies";
-import { getTelegramId } from "@/lib/client";
-import { formatHMS } from "@/lib/format-time";
-import { getTelegramUser } from "@/lib/telegram";
+import { DashboardAllocationBar } from "@/components/dashboard/DashboardAllocationBar";
+import { DashboardInsights } from "@/components/dashboard/DashboardInsights";
+import type { EnrichedInvestment } from "@/components/dashboard/DashboardRewardsPanel";
+import { DashboardRewardsPanel } from "@/components/dashboard/DashboardRewardsPanel";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStrip";
+import { PortfolioChartPanel } from "@/components/dashboard/PortfolioChartPanel";
+import { companies, GROW_ASSET_CODE } from "@/lib/companies";
+import { disconnectSession, getTelegramId } from "@/lib/client";
+import {
+  buildPortfolioChartSeries,
+  computePortfolioUsd,
+  computeTodayChangeUsd,
+  portfolioSymbolsForAverage,
+  randomWalkPrices,
+  type ChartRange,
+} from "@/lib/dashboard-portfolio";
 import { formatAddress } from "@/lib/stellar";
-import { computeBatchProgress, computePendingReward, REWARD_ACCRUAL_MS } from "@/lib/rewards";
-import type { Investment } from "@/models/User";
-import { animateListCards, prefersReducedMotion } from "@/lib/animations";
+import { getTelegramUser } from "@/lib/telegram";
+import { computeBatchProgress } from "@/lib/rewards";
+import type { PricePoint } from "@/lib/market-data";
 
 function greetingHour(h: number) {
   if (h < 12) return "Good morning";
@@ -24,304 +40,432 @@ function greetingHour(h: number) {
   return "Good evening";
 }
 
-function useNextBatchCountdown(lastRewardAtIso: string, enabled: boolean) {
-  const [label, setLabel] = useState("00:00:00");
+type MarketPayload = {
+  tokens: { symbol: string; priceUsd: number; history: PricePoint[] }[];
+  generatedAt: string;
+};
 
-  useEffect(() => {
-    if (!enabled) return;
-    const last = new Date(lastRewardAtIso).getTime();
-    const tick = () => {
-      const elapsed = Date.now() - last;
-      const msInto = elapsed % REWARD_ACCRUAL_MS;
-      const remain = REWARD_ACCRUAL_MS - msInto;
-      setLabel(formatHMS(remain));
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [lastRewardAtIso, enabled]);
-
-  return label;
-}
-
-function ReadyDot() {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || prefersReducedMotion()) return;
-    const tl = gsap.to(el, {
-      opacity: 0.35,
-      duration: 0.45,
-      repeat: -1,
-      yoyo: true,
-      ease: "power1.inOut",
-    });
-    return () => {
-      tl.kill();
-    };
-  }, []);
-  return (
-    <span
-      ref={ref}
-      className="inline-block h-2 w-2 shrink-0 rounded-[var(--radius-full)] bg-[var(--accent-green)]"
-      aria-hidden
-    />
-  );
-}
-
-function BatchRow({ inv }: { inv: Investment }) {
-  const router = useRouter();
-  const meta = computeBatchProgress(inv);
-  const companyMeta = companies.find((c) => c.id === inv.companyId);
-  const rate = companyMeta?.dailyRate ?? 0;
-  const totalDailyReward = inv.tokensInvested * rate;
-  const lastIso =
-    typeof inv.lastRewardAt === "string"
-      ? inv.lastRewardAt
-      : new Date(inv.lastRewardAt).toISOString();
-  const countdown = useNextBatchCountdown(lastIso, meta.batchesReady === 0);
-
-  return (
-    <Card data-stagger-card className="relative space-y-3 border-[var(--border)] pr-11">
-      <button
-        type="button"
-        className="absolute right-2 top-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--background-primary)] hover:text-[var(--text-primary)]"
-        aria-label={`Manage ${inv.companyName} stake on Companies`}
-        onClick={() => router.push(`/companies?highlight=${encodeURIComponent(inv.companyId)}`)}
-      >
-        <ArrowUpRight className="h-5 w-5 min-h-[20px] min-w-[20px] shrink-0" aria-hidden />
-      </button>
-      <div className="flex flex-wrap items-center gap-2">
-        {meta.batchesReady > 0 ? <ReadyDot /> : null}
-        <span className="sg-text-md font-semibold text-[var(--text-primary)]">{inv.companyName}</span>
-        <span className="sg-chip">{inv.assetCode}</span>
-      </div>
-      <LinearProgress percent={meta.batchesReady > 0 ? 100 : meta.progressToNextPercent} />
-      <p className="sg-text-sm text-[var(--text-secondary)]">
-        {meta.batchesReady > 0
-          ? `${meta.batchesReady} batch${meta.batchesReady === 1 ? "" : "es"} ready — claim in Rewards`
-          : `Next batch in ${countdown}`}
-      </p>
-      <p className="sg-text-lg font-bold leading-tight text-[var(--text-primary)]">
-        Earning {totalDailyReward.toFixed(2)} {inv.assetCode} / day
-      </p>
-      <p className="sg-text-xs text-[var(--text-muted)]">
-        GROW staked · {inv.tokensInvested.toFixed(2)} · earns {inv.assetCode} rewards
-      </p>
-    </Card>
-  );
-}
-
-type UserState = {
+type UserPayload = {
   publicKey: string;
   growBalance: number;
   totalInvested: number;
-  investments: Investment[];
+  isVerified: boolean;
+  lastBalanceSyncAt: string | null;
+  investments: EnrichedInvestment[];
 };
+
+function changePctFromHistory(history: PricePoint[]): number {
+  if (history.length < 2) return 0;
+  const a = history[history.length - 2].v;
+  const b = history[history.length - 1].v;
+  if (!(a > 0)) return 0;
+  return ((b - a) / a) * 100;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<UserState | null>(null);
-  const [tick, setTick] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
-  const statRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<UserPayload | null>(null);
+  const [market, setMarket] = useState<MarketPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [snapshotAt, setSnapshotAt] = useState(() => Date.now());
+  const [clock, setClock] = useState(0);
+  const [localPrices, setLocalPrices] = useState<Record<string, number>>({});
+  const [chartRange, setChartRange] = useState<ChartRange>("3M");
+  const [chartAnimKey, setChartAnimKey] = useState(0);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const reload = () => {
+  const reload = useCallback(() => {
     const telegramId = getTelegramId();
-    fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`).then((r) => {
-      if (r.status === 404) {
-        setUser(null);
-        router.replace("/wallet");
-        return null;
+    return Promise.all([
+      fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`).then((r) => {
+        if (r.status === 404) {
+          setUser(null);
+          router.replace("/wallet");
+          return null;
+        }
+        return r.json();
+      }),
+      fetch("/api/market-data").then((r) => (r.ok ? r.json() : null)),
+    ]).then(([u, m]) => {
+      if (u) {
+        setUser(u as UserPayload);
+        setSnapshotAt(Date.now());
       }
-      return r.json();
-    }).then((data) => {
-      if (data) setUser(data);
+      if (m) setMarket(m as MarketPayload);
+      setLoading(false);
     });
-  };
+  }, [router]);
 
   useEffect(() => {
-    reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only load
-  }, []);
+    setLoadError("");
+    reload().catch(() => {
+      setLoadError("Could not load dashboard.");
+      setLoading(false);
+    });
+  }, [reload]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    const id = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
-  useLayoutEffect(() => {
-    if (!user) return;
-    const t = requestAnimationFrame(() => {
-      animateListCards(listRef.current);
-      animateListCards(statRef.current, "[data-stat-card]");
+  useEffect(() => {
+    if (!market?.tokens?.length) return;
+    setLocalPrices((prev) => {
+      if (Object.keys(prev).length) return prev;
+      return Object.fromEntries(market.tokens.map((t) => [t.symbol, t.priceUsd]));
     });
-    return () => cancelAnimationFrame(t);
+  }, [market]);
+
+  useEffect(() => {
+    if (!market?.tokens?.length) return;
+    const id = window.setInterval(() => {
+      setLocalPrices((p) => (Object.keys(p).length ? randomWalkPrices(p) : p));
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [market]);
+
+  useEffect(() => {
+    setChartAnimKey((k) => k + 1);
+  }, [chartRange]);
+
+  const histories = useMemo(() => {
+    const h: Record<string, PricePoint[]> = {};
+    if (!market?.tokens) return h;
+    for (const t of market.tokens) {
+      h[t.symbol] = t.history;
+    }
+    return h;
+  }, [market]);
+
+  const pendingByCompanyId = useMemo(() => {
+    void clock;
+    if (!user) return {};
+    const elapsedMin = (Date.now() - snapshotAt) / 60_000;
+    const map: Record<string, number> = {};
+    for (const inv of user.investments) {
+      const rate = inv.ratePerMinute ?? 0;
+      map[inv.companyId] = inv.accumulatedReward + rate * elapsedMin;
+    }
+    return map;
+  }, [user, snapshotAt, clock]);
+
+  const portfolioUsd = useMemo(() => {
+    if (!user) return 0;
+    return computePortfolioUsd({
+      growBalance: user.growBalance,
+      investments: user.investments,
+      pendingByCompanyId,
+      prices: localPrices,
+    });
+  }, [user, pendingByCompanyId, localPrices]);
+
+  const chartSymbols = useMemo(() => {
+    if (!user) return [] as string[];
+    return portfolioSymbolsForAverage(user.growBalance, user.investments);
   }, [user]);
 
-  const totalRewards = useMemo(() => {
-    if (!user) return 0;
-    return user.investments.reduce((s, i) => s + computePendingReward(i), 0);
-  }, [user, tick]);
+  const chartRows3M = useMemo(() => {
+    if (!user || chartSymbols.length === 0) return [];
+    return buildPortfolioChartSeries({
+      range: "3M",
+      portfolioUsd,
+      symbols: chartSymbols,
+      histories,
+    });
+  }, [user, portfolioUsd, chartSymbols, histories]);
 
-  const totalClaimable = totalRewards;
+  const chartRows = useMemo(() => {
+    if (!user || chartSymbols.length === 0) return [];
+    return buildPortfolioChartSeries({
+      range: chartRange,
+      portfolioUsd,
+      symbols: chartSymbols,
+      histories,
+    });
+  }, [user, chartRange, portfolioUsd, chartSymbols, histories]);
 
-  const activeInvestments = useMemo(
-    () => (user?.investments ?? []).filter((i) => i.tokensInvested > 0),
-    [user],
+  const { deltaUsd, deltaPct } = useMemo(
+    () => computeTodayChangeUsd(chartRows3M, portfolioUsd),
+    [chartRows3M, portfolioUsd],
   );
+
+  const tickerItems = useMemo(() => {
+    if (!market?.tokens) return [];
+    return market.tokens.map((t) => ({
+      symbol: t.symbol,
+      price: localPrices[t.symbol] ?? t.priceUsd,
+      changePct: changePctFromHistory(t.history),
+    }));
+  }, [market, localPrices]);
+
+  const totalPendingUsd = useMemo(() => {
+    if (!user) return 0;
+    let s = 0;
+    for (const inv of user.investments) {
+      const p = localPrices[inv.assetCode] ?? 0;
+      s += (pendingByCompanyId[inv.companyId] ?? 0) * p;
+    }
+    return s;
+  }, [user, pendingByCompanyId, localPrices]);
+
+  const insightLines = useMemo(() => {
+    void clock;
+    if (!user) return [];
+    const active = user.investments.filter((i) => i.tokensInvested > 0);
+    const best = active
+      .map((i) => {
+        const c = companies.find((x) => x.id === i.companyId);
+        return c ? { name: c.name, rate: c.dailyRate } : null;
+      })
+      .filter(Boolean) as { name: string; rate: number }[];
+    const bestLine =
+      best.length > 0
+        ? `Best performer: ${best.reduce((a, b) => (b.rate > a.rate ? b : a)).name} (${best.reduce((a, b) => (b.rate > a.rate ? b : a)).rate.toFixed(2)}% / day on staked GROW).`
+        : "Stake with a company to see performance insights.";
+
+    const msList = active.map((i) => computeBatchProgress(i).msUntilNextBatch);
+    const ms = msList.length ? Math.min(...msList) : 0;
+    const nextMin = Math.ceil(ms / 60_000);
+    const accrualLine =
+      active.length > 0
+        ? `Next accrual window: ~${nextMin} min until the next reward batch boundary (estimate).`
+        : "No active stakes — accruals start after you invest.";
+
+    const pendLine = `Pending rewards (mark-to-market): ~$${totalPendingUsd.toFixed(2)} USD across positions.`;
+
+    const driftLine =
+      Math.abs(deltaUsd) < 0.0001
+        ? "Portfolio drift: flat vs prior close on the blended benchmark."
+        : `Portfolio drift: ${deltaUsd >= 0 ? "+" : ""}$${deltaUsd.toFixed(2)} (${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(2)}%) vs prior close.`;
+
+    return [bestLine, accrualLine, pendLine, driftLine];
+  }, [user, totalPendingUsd, deltaUsd, deltaPct, clock]);
+
+  const claimAllDisabled = useMemo(() => {
+    if (!user) return true;
+    if (claimingId) return true;
+    return !user.investments.some((i) => (pendingByCompanyId[i.companyId] ?? 0) > 0.0000001);
+  }, [user, pendingByCompanyId, claimingId]);
+
+  const growUsd = (localPrices[GROW_ASSET_CODE] ?? 0) * (user?.growBalance ?? 0);
+
+  const lastSyncLabel = useMemo(() => {
+    void clock;
+    if (!user?.lastBalanceSyncAt) return "Never synced on-chain";
+    const m = Math.max(0, Math.floor((Date.now() - new Date(user.lastBalanceSyncAt).getTime()) / 60_000));
+    if (m < 1) return "Last synced <1m ago";
+    return `Last synced ${m}m ago`;
+  }, [user?.lastBalanceSyncAt, clock]);
+
+  const onClaimAll = async () => {
+    setClaimingId("__all__");
+    try {
+      const res = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramId: getTelegramId(), claimAll: true }),
+      });
+      if (res.ok) await reload();
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const onClaimOne = async (companyId: string) => {
+    setClaimingId(companyId);
+    try {
+      const res = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
+      });
+      if (res.ok) await reload();
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const onSync = async () => {
+    setSyncError("");
+    setSyncBusy(true);
+    try {
+      const res = await fetch("/api/user/balance-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramId: getTelegramId() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSyncError(typeof data.message === "string" ? data.message : "Sync failed.");
+        return;
+      }
+      await reload();
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
+  const onDisconnect = () => {
+    disconnectSession();
+    router.replace("/wallet");
+  };
 
   const firstName = getTelegramUser()?.first_name?.trim() || "there";
   const hour = new Date().getHours();
+  const activeStakeCount = user?.investments.filter((i) => i.tokensInvested > 0).length ?? 0;
 
-  const claimAll = async () => {
-    const res = await fetch("/api/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId: getTelegramId(), claimAll: true }),
-    });
-    if (res.ok) reload();
-  };
-
-  if (!user) {
-    return <LoadingPulse label="Loading your portfolio..." />;
+  if (loadError) {
+    return (
+      <div className="px-4 py-8 text-center text-[var(--error)]" data-page-child>
+        {loadError}
+      </div>
+    );
   }
 
+  if (loading || !user || !market) {
+    return <DashboardSkeleton />;
+  }
+
+  const upDay = deltaUsd >= 0;
+
   return (
-    <>
-      <header
-        className="-mx-4 mb-4 flex items-center justify-between gap-3 px-4 py-4"
-        style={{ background: "var(--background-dark)" }}
-        data-page-child
-      >
-        <p className="sg-text-md font-medium text-[var(--white)]">
-          {greetingHour(hour)}, {firstName}
-        </p>
-        <div
-          className="flex max-w-[52%] items-center gap-1.5 rounded-[var(--radius-md)] px-2 py-1.5"
-          style={{ background: "var(--primary-green)" }}
+    <div
+      className="dash-root relative -mx-4 w-[calc(100%+2rem)] max-w-[calc(100%+2rem)] px-4 pb-28 pt-2"
+      data-page-child
+    >
+      <div className="dash-bg-image" aria-hidden />
+      <div className="dash-inner space-y-3">
+        <header
+          className="mb-1 flex flex-wrap items-start justify-between gap-3 border-b border-[var(--dash-border)] pb-3"
+          data-page-child
         >
-          <ShieldCheck size={14} className="shrink-0 text-[var(--white)]" aria-hidden />
-          <span className="sg-text-xs font-medium truncate text-[var(--white)]">
-            {formatAddress(user.publicKey)}
-          </span>
-        </div>
-      </header>
-
-      <div
-        ref={statRef}
-        className="-mx-1 mb-6 flex gap-3 overflow-x-auto pb-1"
-        data-page-child
-      >
-        <Card
-          data-stat-card
-          className="min-w-[148px] shrink-0 space-y-2 border-[var(--border)]"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="sg-text-sm text-[var(--text-secondary)]">GROW available</span>
-            <TrendingUp size={18} className="shrink-0 text-[var(--accent-green)]" aria-hidden />
+          <div>
+            <p className="text-[15px] font-medium text-[var(--dash-text)]">
+              {greetingHour(hour)}, {firstName}
+            </p>
+            <p className="dash-section-label mt-1">Portfolio terminal</p>
           </div>
-          <AnimatedNumber
-            value={user.growBalance}
-            className="sg-text-2xl font-semibold text-[var(--text-primary)]"
-          />
-          <p className="sg-text-xs text-[var(--text-muted)]">Available to invest</p>
-        </Card>
-        <Card
-          data-stat-card
-          className="min-w-[148px] shrink-0 space-y-2 border-[var(--border)]"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="sg-text-sm text-[var(--text-secondary)]">Total invested</span>
-            <Building2 size={18} className="shrink-0 text-[var(--text-muted)]" aria-hidden />
+          <div className="flex flex-col items-end gap-2">
+            <div
+              className={`flex max-w-[220px] items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium ${
+                user.isVerified
+                  ? "border-[var(--dash-teal)] bg-[rgba(45,212,191,0.1)] text-[var(--dash-teal)]"
+                  : "border-[rgba(248,113,113,0.45)] bg-[rgba(248,113,113,0.08)] text-[var(--dash-red)]"
+              }`}
+            >
+              {user.isVerified ? (
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              ) : (
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              )}
+              <span className="dash-tabular truncate">{formatAddress(user.publicKey)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {!user.isVerified ? (
+                <Link
+                  href="/wallet"
+                  className="text-[11px] font-semibold text-[var(--dash-teal)] underline-offset-2 hover:underline"
+                >
+                  Verify wallet
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={onDisconnect}
+                className="inline-flex items-center gap-1 rounded-md border border-[var(--dash-border)] px-2 py-1 text-[11px] font-semibold text-[var(--dash-muted)] hover:border-[var(--dash-red)] hover:text-[var(--dash-red)]"
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden />
+                Disconnect
+              </button>
+            </div>
           </div>
-          <AnimatedNumber
-            value={user.totalInvested}
-            className="sg-text-2xl font-semibold text-[var(--text-primary)]"
-          />
-          <p className="sg-text-xs text-[var(--text-muted)]">Across all companies</p>
-        </Card>
-        <Card
-          data-stat-card
-          className="min-w-[148px] shrink-0 space-y-2 border-[var(--border)]"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="sg-text-sm text-[var(--text-secondary)]">Pending rewards</span>
-            <Gift
-              size={18}
-              className={`shrink-0 ${totalRewards > 0 ? "text-[var(--warning)]" : "text-[var(--text-muted)]"}`}
-              aria-hidden
-            />
+        </header>
+
+        <div data-page-child>
+          <DashboardTickerStrip items={tickerItems} />
+        </div>
+
+        <section className="dash-tile dash-tile-wide" data-page-child>
+          <p className="dash-section-label mb-1">Portfolio value</p>
+          <div className="dash-tabular text-[34px] font-semibold leading-none tracking-tight text-[var(--dash-gold)]">
+            $<AnimatedNumber value={portfolioUsd} decimals={2} className="text-[34px] font-semibold text-[var(--dash-gold)]" />
           </div>
-          <AnimatedNumber
-            value={totalRewards}
-            className="sg-text-2xl font-semibold text-[var(--text-primary)]"
-          />
-          <p className="sg-text-xs text-[var(--text-muted)]">Ready to claim</p>
-        </Card>
-      </div>
-
-      <section className="mb-6 space-y-3" data-page-child>
-        <div className="flex items-center gap-2">
-          <Clock size={18} className="text-[var(--text-secondary)]" aria-hidden />
-          <h2 className="sg-text-lg font-semibold text-[var(--text-primary)]">Next reward batch</h2>
-        </div>
-        <div ref={listRef} className="space-y-3">
-          {activeInvestments.map((inv) => (
-            <BatchRow key={inv.companyId} inv={inv} />
-          ))}
-        </div>
-      </section>
-
-      <div className="grid grid-cols-2 gap-3 pb-24" data-page-child>
-        <Button
-          variant="secondary"
-          block
-          className="w-full items-start gap-2 text-left [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
-          onClick={() => router.push("/companies")}
-        >
-          <span className="inline-flex shrink-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:min-h-[20px] [&>svg]:min-w-[20px]">
-            <Building2 aria-hidden />
-          </span>
-          <span>Browse companies</span>
-        </Button>
-        <Button
-          variant="primary"
-          block
-          className="w-full items-start gap-2 text-left [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
-          onClick={claimAll}
-          disabled={totalClaimable <= 0}
-        >
-          <span className="inline-flex shrink-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:min-h-[20px] [&>svg]:min-w-[20px]">
-            <Download aria-hidden />
-          </span>
-          <span>Claim all rewards</span>
-        </Button>
-      </div>
-
-      <div
-        className={`pointer-events-none fixed left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 px-4 transition-transform duration-300 ease-out ${
-          totalClaimable > 0 ? "translate-y-0" : "translate-y-[140%]"
-        }`}
-        style={{
-          bottom: "calc(64px + env(safe-area-inset-bottom, 0px) + 8px)",
-        }}
-      >
-        <div className="pointer-events-auto">
-          <Button
-            variant="primary"
-            block
-            onClick={claimAll}
-            disabled={totalClaimable <= 0}
-            className="items-start gap-2 text-left [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
+          <div
+            className={`mt-2 flex items-center gap-1.5 text-[13px] font-medium ${
+              upDay ? "text-[var(--dash-green)]" : "text-[var(--dash-red)]"
+            }`}
           >
-            <span className="inline-flex shrink-0 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:min-h-[20px] [&>svg]:min-w-[20px]">
-              <Download aria-hidden />
+            {upDay ? <ArrowUpRight className="h-4 w-4" aria-hidden /> : <ArrowDownRight className="h-4 w-4" aria-hidden />}
+            <span className="dash-tabular">
+              Today: {deltaUsd >= 0 ? "+" : ""}${deltaUsd.toFixed(2)} ({deltaPct >= 0 ? "+" : ""}
+              {deltaPct.toFixed(2)}%)
             </span>
-            <span>Rewards ready — claim all</span>
-          </Button>
+          </div>
+          <PortfolioChartPanel
+            range={chartRange}
+            onRangeChange={setChartRange}
+            data={chartRows}
+            chartKey={`${chartRange}-${chartAnimKey}`}
+          />
+        </section>
+
+        <div className="grid grid-cols-2 gap-2" data-page-child>
+          <section className="dash-tile">
+            <p className="dash-section-label mb-2">Available balance</p>
+            <p className="dash-tabular text-[20px] font-semibold text-[var(--dash-text)]">
+              {user.growBalance.toFixed(4)} <span className="text-[13px] text-[var(--dash-muted)]">{GROW_ASSET_CODE}</span>
+            </p>
+            <p className="dash-tabular mt-1 text-[12px] text-[var(--dash-muted)]">≈ ${growUsd.toFixed(2)} USD</p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--dash-border)] pt-3">
+              <span className="text-[11px] text-[var(--dash-muted)]">{lastSyncLabel}</span>
+              <button
+                type="button"
+                disabled={syncBusy}
+                onClick={onSync}
+                className="inline-flex items-center gap-1 rounded-md border border-[var(--dash-teal)] bg-[rgba(45,212,191,0.1)] px-2 py-1 text-[11px] font-semibold text-[var(--dash-teal)] hover:bg-[rgba(45,212,191,0.18)] disabled:opacity-40"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncBusy ? "animate-spin" : ""}`} aria-hidden />
+                Sync
+              </button>
+            </div>
+            {syncError ? <p className="mt-2 text-[11px] text-[var(--dash-red)]">{syncError}</p> : null}
+          </section>
+
+          <section className="dash-tile">
+            <p className="dash-section-label mb-2">Total staked</p>
+            <p className="dash-tabular text-[20px] font-semibold text-[var(--dash-text)]">
+              {user.totalInvested.toFixed(4)} <span className="text-[13px] text-[var(--dash-muted)]">{GROW_ASSET_CODE}</span>
+            </p>
+            <p className="mt-2 text-[12px] leading-snug text-[var(--dash-muted)]">
+              Across {activeStakeCount} {activeStakeCount === 1 ? "company / asset" : "companies / assets"}.
+            </p>
+            <p className="dash-tabular mt-3 text-[11px] text-[var(--dash-label)]">
+              Reward tokens accrue per configured batch interval.
+            </p>
+          </section>
         </div>
+
+        <DashboardRewardsPanel
+          investments={user.investments}
+          pendingByCompanyId={pendingByCompanyId}
+          claimingId={claimingId}
+          onClaimOne={onClaimOne}
+          onClaimAll={onClaimAll}
+          claimAllDisabled={claimAllDisabled}
+        />
+
+        <DashboardInsights lines={insightLines} />
+
+        <DashboardAllocationBar investments={user.investments} />
+
+        <p className="text-center text-[10px] text-[var(--dash-label)]" data-page-child>
+          Prices and blended chart are illustrative (not live exchange data). Claims settle on-chain after verification.
+        </p>
       </div>
-    </>
+    </div>
   );
 }

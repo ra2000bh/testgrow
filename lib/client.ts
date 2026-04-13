@@ -28,3 +28,17 @@ export function syncSessionCookie() {
   if (!id) return;
   document.cookie = `stellargrow_telegram_id=${encodeURIComponent(id)}; path=/; max-age=31536000; SameSite=Lax`;
 }
+
+const SESSION_UPDATE_EVENT = "stellargrow:session-update";
+
+/** Clears stored Telegram session (local + cookie). */
+export function disconnectSession() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem("stellargrow_telegram_id");
+  } catch {
+    /* ignore */
+  }
+  document.cookie = "stellargrow_telegram_id=; path=/; max-age=0; SameSite=Lax";
+  window.dispatchEvent(new Event(SESSION_UPDATE_EVENT));
+}
