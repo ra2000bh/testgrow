@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { GROW_ASSET_CODE } from "@/lib/companies";
 import { connectToDatabase } from "@/lib/mongodb";
-import { getIssuedAssetBalance } from "@/lib/stellar";
+import { getWalletGrowBalance } from "@/lib/stellar";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 
@@ -13,8 +12,7 @@ const schema = z.object({
 });
 
 /**
- * Marks a successful "sync" timestamp and optionally reads chain GROW for display.
- * Does **not** overwrite in-app `growBalance` (MongoDB ledger used for stakes/invest).
+ * Sync endpoint returns live chain GROW and current max-investable amount.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -50,16 +48,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const issuer = process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim();
-    let chainGrowBalance: number | null = null;
-    if (issuer) {
-      chainGrowBalance = await getIssuedAssetBalance(user.publicKey, GROW_ASSET_CODE, issuer);
-      if (chainGrowBalance === null) {
-        return NextResponse.json(
-          { success: false, message: "Could not read account from Stellar Horizon." },
-          { status: 502, headers: CACHE_PRIVATE_NO_STORE },
-        );
-      }
+    const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
+    if (chainGrowBalance === null) {
+      return NextResponse.json(
+        { success: false, message: "Could not read account from Stellar Horizon." },
+        { status: 502, headers: CACHE_PRIVATE_NO_STORE },
+      );
     }
 
     user.lastBalanceSyncAt = new Date();
@@ -68,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        growBalance: user.growBalance,
+        growBalance: Math.max(0, chainGrowBalance - (Number(user.totalInvested) || 0)),
         chainGrowBalance,
         lastBalanceSyncAt: user.lastBalanceSyncAt.toISOString(),
       },

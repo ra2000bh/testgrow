@@ -5,6 +5,7 @@ import { User } from "@/models/User";
 import { computePendingReward } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { getWalletGrowBalance } from "@/lib/stellar";
 
 const schema = z.object({
   telegramId: z.string().min(1),
@@ -48,13 +49,15 @@ export async function POST(request: NextRequest) {
 
     const pending = computePendingReward(inv);
     const principal = inv.tokensInvested;
-    user.growBalance += principal + pending;
     user.totalInvested = Math.max(0, user.totalInvested - principal);
     investments.splice(idx, 1);
 
     await user.save();
+    const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
+    const updatedBalance =
+      chainGrowBalance === null ? null : Math.max(0, chainGrowBalance - (Number(user.totalInvested) || 0));
     return NextResponse.json(
-      { success: true, updatedBalance: user.growBalance, returned: principal + pending },
+      { success: true, updatedBalance, returned: principal + pending },
       { headers: CACHE_PRIVATE_NO_STORE },
     );
   } catch {

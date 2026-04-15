@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { getCompanyById } from "@/lib/companies";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { getWalletGrowBalance } from "@/lib/stellar";
 
 const schema = z.object({
   telegramId: z.string().min(1),
@@ -34,18 +35,27 @@ export async function POST(request: NextRequest) {
         { status: 403, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
-    if (user.growBalance < amount) {
+    const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
+    if (chainGrowBalance === null) {
       return NextResponse.json(
-        { success: false, message: "Insufficient GROW balance." },
+        { success: false, message: "Could not read GROW balance from Stellar Horizon." },
+        { status: 502, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    const totalInvested = Number(user.totalInvested) || 0;
+    const maxInvestable = Math.max(0, chainGrowBalance - totalInvested);
+    if (amount > maxInvestable) {
+      return NextResponse.json(
+        { success: false, message: `Insufficient GROW balance. Max investable is ${maxInvestable.toFixed(7)}.` },
         { status: 400, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
 
-    user.growBalance -= amount;
     user.totalInvested += amount;
     const existing = user.investments.find((inv: { companyId: string }) => inv.companyId === companyId);
     if (existing) {
       existing.tokensInvested += amount;
+      existing.investingPublicKey = user.publicKey;
       existing.lastRewardAt = new Date();
     } else {
       user.investments.push({
@@ -53,6 +63,7 @@ export async function POST(request: NextRequest) {
         companyName: company.name,
         assetCode: company.assetCode,
         issuer: company.issuer,
+        investingPublicKey: user.publicKey,
         tokensInvested: amount,
         investedAt: new Date(),
         lastRewardAt: new Date(),
@@ -62,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     await user.save();
     return NextResponse.json(
-      { success: true, updatedBalance: user.growBalance },
+      { success: true, updatedBalance: Math.max(0, chainGrowBalance - user.totalInvested) },
       { headers: CACHE_PRIVATE_NO_STORE },
     );
   } catch {

@@ -171,17 +171,13 @@ export function PortfolioChartPanel({
           </div>
         )}
       </div>
-      <p className="dash-tabular mt-2 min-h-[2.25rem] text-center text-[11px] leading-snug text-[var(--dash-muted)]">
-        {pinned ? (
-          <>
-            <span className="text-[var(--dash-text)]">{pinned.t}</span>
-            <span className="mx-1.5 text-[var(--dash-border-bright)]">·</span>
-            <span className="font-semibold text-[var(--dash-gold)]">${pinned.display.toFixed(2)}</span>
-          </>
-        ) : (
-          <>Tap the chart near a day to pin the date (labels stay off the axis to avoid overlap).</>
-        )}
-      </p>
+      {pinned ? (
+        <p className="dash-tabular mt-2 min-h-[2.25rem] text-center text-[11px] leading-snug text-[var(--dash-muted)]">
+          <span className="text-[var(--dash-text)]">{pinned.t}</span>
+          <span className="mx-1.5 text-[var(--dash-border-bright)]">·</span>
+          <span className="font-semibold text-[var(--dash-gold)]">${pinned.display.toFixed(2)}</span>
+        </p>
+      ) : null}
     </div>
   );
 }

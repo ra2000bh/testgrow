@@ -6,7 +6,12 @@ import { companyBrandGradient, getCompanyById } from "@/lib/companies";
 import { computeRewardPerBatch } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 
-export type EnrichedInvestment = Investment & { ratePerMinute: number; accumulatedReward: number };
+export type EnrichedInvestment = Investment & {
+  ratePerMinute: number;
+  accumulatedReward: number;
+  rewardsEligible?: boolean;
+  pausedReason?: string | null;
+};
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -64,6 +69,7 @@ export function DashboardRewardsPanel({
       <ul className="space-y-2">
         {active.map((inv) => {
           const pending = pendingByCompanyId[inv.companyId] ?? 0;
+          const eligible = inv.rewardsEligible !== false;
           const perBatch = computeRewardPerBatch(inv);
           const pulse = pending > perBatch * 0.25;
           const co = getCompanyById(inv.companyId);
@@ -99,11 +105,14 @@ export function DashboardRewardsPanel({
                   <span className="font-semibold text-[var(--dash-text)]">{pending.toFixed(4)}</span>{" "}
                   {inv.assetCode}
                 </p>
+                {!eligible && inv.pausedReason ? (
+                  <p className="text-[11px] font-medium text-[var(--dash-red)]">{inv.pausedReason}</p>
+                ) : null}
               </div>
               <button
                 type="button"
                 className="dash-tabular shrink-0 min-h-9 rounded-md border border-[var(--dash-teal)] bg-[rgba(45,212,191,0.12)] px-3 text-[12px] font-semibold text-[var(--dash-teal)] hover:bg-[rgba(45,212,191,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={pending <= 0 || claimingId === inv.companyId || claimingId === "__all__"}
+                disabled={!eligible || pending <= 0 || claimingId === inv.companyId || claimingId === "__all__"}
                 onClick={() => onClaimOne(inv.companyId)}
               >
                 {claimingId === inv.companyId ? "…" : "Claim"}

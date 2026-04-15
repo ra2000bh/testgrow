@@ -417,6 +417,7 @@ body {
 .dash-marquee {
   display: flex;
   width: max-content;
+  will-change: transform;
   animation: dash-marquee 48s linear infinite;
 }
 
@@ -430,12 +431,6 @@ body {
   }
   100% {
     transform: translateX(-50%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dash-marquee {
-    animation: none;
   }
 }
 

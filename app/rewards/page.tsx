@@ -1,10 +1,10 @@
 "use client";
 
 import gsap from "gsap";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getTelegramId } from "@/lib/client";
 import { companies } from "@/lib/companies";
-import { computeBatchProgress, computePendingReward } from "@/lib/rewards";
+import { computeBatchProgress } from "@/lib/rewards";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -19,7 +19,12 @@ import Link from "next/link";
 import { Building2, CheckCircle2, Download } from "lucide-react";
 import type { Investment } from "@/models/User";
 
-type Row = Investment & { accumulatedReward: number };
+type Row = Investment & {
+  accumulatedReward: number;
+  ratePerMinute?: number;
+  rewardsEligible?: boolean;
+  pausedReason?: string | null;
+};
 
 function InlineLoadingDot() {
   const ref = useRef<HTMLSpanElement>(null);
@@ -90,10 +95,13 @@ export default function RewardsPage() {
     requestAnimationFrame(() => animateListCards(listRef.current));
   }, [rows]);
 
-  const totalPending = useMemo(() => {
-    void tick;
-    return rows.reduce((s, r) => s + computePendingReward(r), 0);
-  }, [rows, tick]);
+  const pendingForRow = (r: Row) => {
+    if (r.rewardsEligible === false) return 0;
+    const rate = r.ratePerMinute ?? 0;
+    return Math.max(0, r.accumulatedReward + (rate * tick) / 60);
+  };
+
+  const totalPending = rows.reduce((s, r) => s + pendingForRow(r), 0);
 
   const runCountDown = (el: HTMLElement | null, from: number) => {
     if (!el) return;
@@ -130,7 +138,7 @@ export default function RewardsPage() {
 
     if (companyId) {
       const row = rows.find((r) => r.companyId === companyId);
-      const amt = row ? computePendingReward(row) : 0;
+      const amt = row ? pendingForRow(row) : 0;
       const el = document.querySelector<HTMLElement>(`[data-reward-fig="${companyId}"]`);
       runCountDown(el, amt);
       setSentId(companyId);
@@ -172,8 +180,8 @@ export default function RewardsPage() {
         {rows.map((inv) => {
           const company = companies.find((c) => c.id === inv.companyId);
           const meta = computeBatchProgress(inv);
-          const pending = computePendingReward(inv);
-          const canClaim = pending > 0;
+          const pending = pendingForRow(inv);
+          const canClaim = pending > 0 && inv.rewardsEligible !== false;
           const busy = claiming === inv.companyId;
           return (
             <Card key={inv.companyId} data-stagger-card className="space-y-3 border-[var(--border)]" data-page-child>
@@ -190,6 +198,9 @@ export default function RewardsPage() {
                   ? `${company.dailyRate.toFixed(2)} ${inv.assetCode} per GROW staked · per accrual interval`
                   : null}
               </p>
+              {inv.rewardsEligible === false && inv.pausedReason ? (
+                <p className="sg-text-sm font-medium text-[var(--error)]">{inv.pausedReason}</p>
+              ) : null}
               {sentId === inv.companyId ? (
                 <div className="flex items-center gap-2 text-[var(--success)]">
                   <CheckCircle2 size={16} aria-hidden />

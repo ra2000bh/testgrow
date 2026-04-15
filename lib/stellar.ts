@@ -7,9 +7,13 @@ import {
   Operation,
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
+import { GROW_ASSET_CODE } from "@/lib/companies";
 
 const HORIZON_URL = process.env.STELLAR_HORIZON_URL || "https://horizon.stellar.org";
 const server = new Horizon.Server(HORIZON_URL);
+const BALANCE_CACHE_TTL_MS = Math.max(0, Number(process.env.STELLAR_BALANCE_CACHE_TTL_MS ?? 30_000) || 30_000);
+const MAX_RATE_LIMIT_RETRIES = 2;
+const balanceCache = new Map<string, { value: number; expiresAt: number }>();
 
 /** Match Horizon: testnet vs public network. */
 export function getStellarNetworkPassphrase(): string {
@@ -39,13 +43,78 @@ export function formatAddress(address: string) {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
+function statusFromHorizonError(e: unknown): number | undefined {
+  if (!e || typeof e !== "object" || !("response" in e)) return undefined;
+  return (e as { response?: { status?: number } }).response?.status;
+}
+
+function retryAfterMsFromError(e: unknown): number | undefined {
+  if (!e || typeof e !== "object" || !("response" in e)) return undefined;
+  const headers = (e as { response?: { headers?: Record<string, string> } }).response?.headers;
+  const retryAfter = headers?.["retry-after"];
+  if (!retryAfter) return undefined;
+  const sec = Number(retryAfter);
+  if (!Number.isFinite(sec) || sec <= 0) return undefined;
+  return sec * 1000;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function loadAccountWithRetry(publicKey: string) {
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    try {
+      return await server.loadAccount(publicKey);
+    } catch (e: unknown) {
+      const status = statusFromHorizonError(e);
+      if (status === 404) return null;
+      if (status !== 429 || attempt >= MAX_RATE_LIMIT_RETRIES) throw e;
+      const hinted = retryAfterMsFromError(e);
+      const backoff = hinted ?? 300 * 2 ** attempt;
+      await sleep(backoff);
+    }
+  }
+  return null;
+}
+
+export async function getWalletGrowBalance(publicKey: string): Promise<number | null> {
+  const issuer = process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim();
+  if (!issuer) return null;
+  const key = `${publicKey}:${GROW_ASSET_CODE}:${issuer}`;
+  const now = Date.now();
+  const cached = balanceCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  try {
+    const account = await loadAccountWithRetry(publicKey);
+    if (!account) {
+      balanceCache.set(key, { value: 0, expiresAt: now + BALANCE_CACHE_TTL_MS });
+      return 0;
+    }
+    const row = account.balances.find((b) => {
+      if (b.asset_type === "native") return false;
+      if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
+      return b.asset_code === GROW_ASSET_CODE && b.asset_issuer === issuer;
+    });
+    const value = row && "balance" in row ? Number(row.balance) : 0;
+    const balance = Number.isFinite(value) ? value : null;
+    if (balance === null) return null;
+    balanceCache.set(key, { value: balance, expiresAt: now + BALANCE_CACHE_TTL_MS });
+    return balance;
+  } catch {
+    return null;
+  }
+}
+
 export async function getIssuedAssetBalance(
   publicKey: string,
   assetCode: string,
   issuerPublicKey: string,
 ): Promise<number | null> {
   try {
-    const account = await server.loadAccount(publicKey);
+    const account = await loadAccountWithRetry(publicKey);
+    if (!account) return 0;
     const row = account.balances.find((b) => {
       if (b.asset_type === "native") return false;
       if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
@@ -55,10 +124,7 @@ export async function getIssuedAssetBalance(
     const n = Number(row.balance);
     return Number.isFinite(n) ? n : null;
   } catch (e: unknown) {
-    const status =
-      e && typeof e === "object" && "response" in e
-        ? (e as { response?: { status?: number } }).response?.status
-        : undefined;
+    const status = statusFromHorizonError(e);
     if (status === 404) return 0;
     return null;
   }

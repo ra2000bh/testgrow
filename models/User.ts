@@ -6,6 +6,7 @@ const InvestmentSchema = new Schema(
     companyName: { type: String, required: true },
     assetCode: { type: String, required: true },
     issuer: { type: String, required: true },
+    investingPublicKey: { type: String, required: false },
     tokensInvested: { type: Number, default: 0 },
     investedAt: { type: Date, default: Date.now },
     lastRewardAt: { type: Date, default: Date.now },
@@ -44,10 +45,13 @@ export type Investment = {
   companyName: string;
   assetCode: string;
   issuer: string;
+  investingPublicKey?: string;
   tokensInvested: number;
   investedAt: Date;
   lastRewardAt: Date;
   accumulatedReward: number;
+  rewardsEligible?: boolean;
+  pausedReason?: string | null;
 };
 
 export type UserDoc = {

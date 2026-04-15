@@ -9,7 +9,7 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { animateInvestSheet, animateListCards } from "@/lib/animations";
-import { Link2, MinusCircle, TrendingUp } from "lucide-react";
+import { MinusCircle, TrendingUp } from "lucide-react";
 
 type UserState = {
   growBalance: number;
@@ -24,6 +24,8 @@ export default function CompaniesPage() {
   const [error, setError] = useState("");
   const [sheetError, setSheetError] = useState("");
   const [investSubmitting, setInvestSubmitting] = useState(false);
+  const [liveMaxGrow, setLiveMaxGrow] = useState<number | null>(null);
+  const [balanceRefreshing, setBalanceRefreshing] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,7 @@ export default function CompaniesPage() {
   }, [open]);
 
   const company = companies.find((c) => c.id === selectedCompany);
-  const maxGrow = user?.growBalance ?? 0;
+  const maxGrow = liveMaxGrow ?? user?.growBalance ?? 0;
 
   const syncSlider = (v: number) => {
     const x = Math.max(0, Math.min(maxGrow, v));
@@ -112,6 +114,31 @@ export default function CompaniesPage() {
     }
   };
 
+  const refreshInvestableBalance = async () => {
+    if (!user) return;
+    setBalanceRefreshing(true);
+    try {
+      const res = await fetch("/api/user/grow-balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramId: getTelegramId() }),
+      });
+      const data = (await res.json()) as { success?: boolean; growBalance?: number; message?: string };
+      if (!res.ok || !data.success || typeof data.growBalance !== "number") {
+        setSheetError(data.message || "Could not refresh balance from Stellar.");
+        return;
+      }
+      setLiveMaxGrow(data.growBalance);
+      const clamped = Math.max(0, Math.min(data.growBalance, amount));
+      setSliderVal(clamped);
+      setAmount(clamped);
+    } catch {
+      setSheetError("Could not refresh balance from Stellar.");
+    } finally {
+      setBalanceRefreshing(false);
+    }
+  };
+
   const withdrawStake = async (companyId: string, companyName: string) => {
     setError("");
     if (
@@ -134,15 +161,14 @@ export default function CompaniesPage() {
 
   const dailyPreview = company ? amount * company.dailyRate : 0;
 
-  const compactBtn =
-    "!min-h-[36px] shrink-0 gap-1 px-2.5 py-1.5 text-[12px] leading-tight font-semibold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:min-h-4 [&>svg]:min-w-4 [&>svg]:shrink-0";
+  const actionBtn =
+    "w-full !min-h-[40px] justify-center gap-1 px-3 py-2 text-[12px] leading-tight font-semibold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:min-h-4 [&>svg]:min-w-4 [&>svg]:shrink-0";
 
   return (
     <section className="relative pb-4">
       <div ref={listRef} className="space-y-3">
         {companies.map((c) => {
           const current = user?.investments.find((inv) => inv.companyId === c.id)?.tokensInvested || 0;
-          const lobstr = `https://lobstr.co/assets/${c.assetCode}:${c.issuer}`;
           return (
             <Card
               key={c.id}
@@ -160,12 +186,12 @@ export default function CompaniesPage() {
                   {companyInitials(c.name)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <h2 className="sg-text-md font-bold text-[var(--text-primary)]">{c.name}</h2>
+                  <h2 className="sg-text-md font-bold text-[var(--text-primary)]">{c.name}</h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     <span className="sg-chip">{c.country}</span>
                     <span className="sg-chip">{c.industry}</span>
                   </div>
-                  <p className="sg-text-xl mt-2 font-bold leading-[var(--text-lg-leading)] text-[var(--text-primary)]">
+                  <p className="sg-text-sm mt-2 font-semibold leading-[var(--text-sm-leading)] text-[var(--text-primary)]">
                     +{c.dailyRate.toFixed(2)} {c.assetCode} per GROW · daily
                   </p>
                 </div>
@@ -175,18 +201,20 @@ export default function CompaniesPage() {
                 GROW staked · {current.toFixed(2)} · earns {c.assetCode} rewards
               </p>
 
-              <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="primary"
                   size="sm"
-                  className={compactBtn}
+                  className={actionBtn}
                   onClick={() => {
                     setSheetError("");
                     setSelectedCompany(c.id);
                     const cap = Math.max(0, user?.growBalance ?? 0);
                     const start = cap > 0 ? cap / 2 : 0;
+                    setLiveMaxGrow(null);
                     setSliderVal(start);
                     setAmount(start);
+                    void refreshInvestableBalance();
                   }}
                   disabled={!user || maxGrow <= 0}
                 >
@@ -197,22 +225,12 @@ export default function CompaniesPage() {
                   variant="secondary"
                   size="sm"
                   type="button"
-                  className={compactBtn}
+                  className={actionBtn}
                   disabled={!user || current <= 0}
                   onClick={() => withdrawStake(c.id, c.name)}
                 >
                   <MinusCircle aria-hidden />
                   <span>Remove stake</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  type="button"
-                  className={compactBtn}
-                  onClick={() => window.open(lobstr, "_blank", "noopener,noreferrer")}
-                >
-                  <Link2 aria-hidden />
-                  <span>Trustline</span>
                 </Button>
               </div>
             </Card>
@@ -237,7 +255,7 @@ export default function CompaniesPage() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[51] flex justify-center">
         <div
           ref={sheetRef}
-          className="pointer-events-auto w-full max-w-[480px] rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-8 pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
+          className="pointer-events-auto w-full max-w-[480px] max-h-[calc(100vh-16px)] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-[max(1.75rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
           role="dialog"
           aria-modal="true"
           aria-label="Invest"
@@ -248,6 +266,16 @@ export default function CompaniesPage() {
               <p className="sg-text-sm text-[var(--text-secondary)]">
                 Available GROW · {maxGrow.toFixed(2)}
               </p>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void refreshInvestableBalance()}
+                  disabled={balanceRefreshing || investSubmitting}
+                  className="sg-text-xs text-[var(--text-muted)] disabled:opacity-50"
+                >
+                  {balanceRefreshing ? "Refreshing balance…" : "Refresh from Stellar"}
+                </button>
+              </div>
               <div>
                 <label className="sr-only" htmlFor="invest-range">
                   Amount slider
@@ -261,7 +289,7 @@ export default function CompaniesPage() {
                   value={sliderVal}
                   onChange={(e) => syncSlider(Number(e.target.value))}
                   className="w-full accent-[var(--primary-green)]"
-                  disabled={maxGrow <= 0}
+                  disabled={maxGrow <= 0 || balanceRefreshing}
                 />
               </div>
               <div>
@@ -302,7 +330,7 @@ export default function CompaniesPage() {
                   variant="primary"
                   className="flex-[2]"
                   onClick={invest}
-                  disabled={amount <= 0 || investSubmitting}
+                  disabled={amount <= 0 || investSubmitting || balanceRefreshing}
                 >
                   {investSubmitting ? "Saving…" : "Confirm"}
                 </Button>
