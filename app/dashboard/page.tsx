@@ -156,12 +156,13 @@ export default function DashboardPage() {
 
   const portfolioUsd = useMemo(() => {
     if (!user) return 0;
-    return computePortfolioUsd({
+    const v = computePortfolioUsd({
       growBalance: user.growBalance,
       investments: user.investments,
       pendingByCompanyId,
       prices: localPrices,
     });
+    return Number.isFinite(v) && v >= 0 ? v : 0;
   }, [user, pendingByCompanyId, localPrices]);
 
   const chartSymbols = useMemo(() => {

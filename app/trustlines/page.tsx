@@ -73,7 +73,7 @@ export default function TrustlinesPage() {
   }
 
   return (
-    <section className="space-y-4 pb-4">
+    <section className="space-y-4 pb-4 pt-4">
       <Card className="space-y-2 border-[var(--border)]" data-page-child>
         <p className="sg-text-md font-semibold text-[var(--text-primary)]">Portfolio tokens</p>
         <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">

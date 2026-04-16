@@ -152,7 +152,7 @@ export default function RewardsPage() {
   };
 
   return (
-    <section className="space-y-4 pb-28">
+    <section className="space-y-4 pb-28 pt-4">
       {rows.length > 0 ? (
         <p className="sg-text-xs text-[var(--text-muted)] px-0.5" data-page-child>
           Claim sends accrued reward tokens to your wallet. “Claim all” uses one Stellar transaction with multiple

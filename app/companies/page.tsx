@@ -165,7 +165,7 @@ export default function CompaniesPage() {
     "w-full !min-h-[40px] justify-center gap-1 px-3 py-2 text-[12px] leading-tight font-semibold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:min-h-4 [&>svg]:min-w-4 [&>svg]:shrink-0";
 
   return (
-    <section className="relative pb-4">
+    <section className="relative pb-4 pt-4">
       <div ref={listRef} className="space-y-3">
         {companies.map((c) => {
           const current = user?.investments.find((inv) => inv.companyId === c.id)?.tokensInvested || 0;

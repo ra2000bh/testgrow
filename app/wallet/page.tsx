@@ -272,7 +272,7 @@ export default function WalletPage() {
 
   if (!user) {
     return (
-      <section className="flex flex-col items-center px-2 py-8" data-page-child>
+      <section className="flex flex-col items-center px-2 pb-8 pt-4" data-page-child>
         <div data-page-child className="mb-8">
           <GrowLogo className="mx-auto" />
         </div>
@@ -314,7 +314,7 @@ export default function WalletPage() {
 
   if (user.isVerified && changeAddressMode) {
     return (
-      <section className="space-y-5 pb-4" data-page-child>
+      <section className="space-y-5 pb-4 pt-4" data-page-child>
         <Card className="space-y-4" data-page-child>
           <div className="space-y-1">
             <p className="sg-text-md font-semibold text-[var(--text-primary)]">New Stellar address</p>
@@ -364,7 +364,7 @@ export default function WalletPage() {
 
   if (user.isVerified) {
     return (
-      <section className="space-y-5 pb-4" data-page-child>
+      <section className="space-y-5 pb-4 pt-4" data-page-child>
         <Card className="space-y-4" data-page-child>
           <div className="flex items-start gap-3">
             <ShieldCheck className="mt-0.5 shrink-0 text-[var(--success)]" size={22} aria-hidden />
@@ -432,7 +432,7 @@ export default function WalletPage() {
   }
 
   return (
-    <section className="space-y-5 pb-4" data-page-child>
+    <section className="space-y-5 pb-4 pt-4" data-page-child>
       <Card className="relative overflow-hidden" data-page-child>
         <div className="relative z-10 flex items-start gap-3">
           <ShieldAlert className="mt-0.5 shrink-0 text-[var(--warning)]" size={22} aria-hidden />
