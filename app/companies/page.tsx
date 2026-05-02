@@ -20,6 +20,7 @@ export default function CompaniesPage() {
   const [user, setUser] = useState<UserState | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [amount, setAmount] = useState(0);
+  const [amountInput, setAmountInput] = useState("0");
   const [sliderVal, setSliderVal] = useState(0);
   const [error, setError] = useState("");
   const [sheetError, setSheetError] = useState("");
@@ -76,11 +77,30 @@ export default function CompaniesPage() {
 
   const company = companies.find((c) => c.id === selectedCompany);
   const maxGrow = liveMaxGrow ?? user?.growBalance ?? 0;
+  const currentStake =
+    selectedCompany && user
+      ? user.investments.find((inv) => inv.companyId === selectedCompany)?.tokensInvested || 0
+      : 0;
 
   const syncSlider = (v: number) => {
-    const x = Math.max(0, Math.min(maxGrow, v));
+    const x = Math.round(Math.max(0, Math.min(maxGrow, v)));
     setSliderVal(x);
     setAmount(x);
+    setAmountInput(x === 0 ? "" : x.toString());
+  };
+
+  const syncNumberInput = (raw: string) => {
+    setAmountInput(raw);
+    if (raw.trim() === "") {
+      setAmount(0);
+      setSliderVal(0);
+      return;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+    const x = Math.round(Math.max(0, Math.min(maxGrow, parsed)));
+    setAmount(x);
+    setSliderVal(x);
   };
 
   const invest = async () => {
@@ -106,6 +126,7 @@ export default function CompaniesPage() {
       }
       setSelectedCompany(null);
       setAmount(0);
+      setAmountInput("0");
       setSliderVal(0);
       reload();
     } catch (e) {
@@ -133,6 +154,7 @@ export default function CompaniesPage() {
       const clamped = Math.max(0, Math.min(data.growBalance, amount));
       setSliderVal(clamped);
       setAmount(clamped);
+      setAmountInput(clamped === 0 ? "" : clamped.toString());
     } catch {
       setSheetError("Could not refresh balance from Stellar.");
     } finally {
@@ -233,10 +255,11 @@ export default function CompaniesPage() {
                     setSheetError("");
                     setSelectedCompany(c.id);
                     const cap = Math.max(0, user?.growBalance ?? 0);
-                    const start = cap > 0 ? cap / 2 : 0;
+                    const start = cap > 0 ? Math.floor(cap / 2) : 0;
                     setLiveMaxGrow(null);
                     setSliderVal(start);
                     setAmount(start);
+                    setAmountInput(start === 0 ? "" : start.toString());
                     void refreshInvestableBalance();
                   }}
                   disabled={!user || maxGrow <= 0}
@@ -272,13 +295,18 @@ export default function CompaniesPage() {
         className="fixed inset-0 z-50 opacity-0"
         style={{ background: "var(--overlay-scrim)" }}
         aria-hidden
-        onClick={() => setSelectedCompany(null)}
+        onClick={() => {
+          setSelectedCompany(null);
+          setAmount(0);
+          setAmountInput("0");
+          setSliderVal(0);
+        }}
       />
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[51] flex justify-center">
         <div
           ref={sheetRef}
-          className="pointer-events-auto w-full max-w-[480px] max-h-[calc(100vh-16px)] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-[max(1.75rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
+          className="pointer-events-auto mb-[70px] w-full max-w-[480px] max-h-[calc(100vh-86px)] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
           role="dialog"
           aria-modal="true"
           aria-label="Invest"
@@ -288,6 +316,9 @@ export default function CompaniesPage() {
               <p className="sg-text-md font-semibold text-[var(--text-primary)]">{company.name}</p>
               <p className="sg-text-sm text-[var(--text-secondary)]">
                 Available GROW · {maxGrow.toFixed(2)}
+              </p>
+              <p className="sg-text-sm text-[var(--text-secondary)]">
+                Currently staked · {currentStake.toFixed(2)} GROW
               </p>
               <div className="flex justify-end">
                 <button
@@ -308,7 +339,7 @@ export default function CompaniesPage() {
                   type="range"
                   min={0}
                   max={maxGrow || 0}
-                  step="0.01"
+                  step={1}
                   value={sliderVal}
                   onChange={(e) => syncSlider(Number(e.target.value))}
                   className="w-full accent-[var(--primary-green)]"
@@ -324,9 +355,16 @@ export default function CompaniesPage() {
                   type="number"
                   min={0}
                   max={maxGrow}
-                  step="0.01"
-                  value={Number.isFinite(amount) ? amount : 0}
-                  onChange={(e) => syncSlider(Number(e.target.value))}
+                  step={1}
+                  value={amountInput}
+                  onChange={(e) => syncNumberInput(e.target.value)}
+                  onBlur={() => {
+                    if (amountInput.trim() === "") {
+                      setAmountInput("0");
+                    } else {
+                      setAmountInput(amount.toString());
+                    }
+                  }}
                   className="sg-input"
                 />
               </div>
@@ -346,7 +384,16 @@ export default function CompaniesPage() {
                 </div>
               ) : null}
               <div className="flex gap-2">
-                <Button variant="ghost" className="flex-1" onClick={() => setSelectedCompany(null)}>
+                <Button
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => {
+                    setSelectedCompany(null);
+                    setAmount(0);
+                    setAmountInput("0");
+                    setSliderVal(0);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button

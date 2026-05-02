@@ -235,7 +235,7 @@ export default function DashboardPage() {
     const accrualLine =
       active.length > 0
         ? `Next accrual window: ~${nextMin} min until the next reward batch boundary (estimate).`
-        : "No active stakes — accruals start after you invest.";
+        : "No active stakes - accruals start after you invest.";
 
     const pendLine = `Pending rewards (mark-to-market): ~$${totalPendingUsd.toFixed(2)} USD across positions.`;
 

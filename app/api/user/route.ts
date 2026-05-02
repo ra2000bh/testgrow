@@ -50,9 +50,11 @@ export async function GET(request: NextRequest) {
     }
 
     const enrichedInvestments = userInvestments.map((investment) => {
+      const maybeDoc = investment as unknown as { toObject?: () => Investment };
+      const baseInvestment = typeof maybeDoc.toObject === "function" ? maybeDoc.toObject() : investment;
       const pausedReason = rewardsEligible ? null : "Tokens were transferred out - rewards paused";
       return {
-        ...investment,
+        ...baseInvestment,
         accumulatedReward: rewardsEligible ? computePendingReward(investment) : 0,
         ratePerMinute: rewardsEligible ? computeRewardRatePerMinute(investment) : 0,
         rewardsEligible,

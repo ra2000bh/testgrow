@@ -22,6 +22,10 @@ export default function TrustlinesPage() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const issuerShort = companies[0]?.issuer ? formatAddress(companies[0].issuer) : "";
+  const sampleCodes = companies
+    .slice(0, 4)
+    .map((c) => c.assetCode)
+    .join(", ");
 
   const sync = useCallback(async () => {
     setError("");
@@ -77,7 +81,7 @@ export default function TrustlinesPage() {
       <Card className="space-y-2 border-[var(--border)]" data-page-child>
         <p className="sg-text-md font-semibold text-[var(--text-primary)]">Portfolio tokens</p>
         <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
-          Each company has its own asset code (HOLAH, KITET, AMBR, …) issued from the same Stellar account (
+          Each company has its own asset code ({sampleCodes}, …) issued from the same Stellar account (
           {issuerShort}). Add a separate trustline for every token you plan to receive before investing — we send
           that token to your wallet when you allocate GROW.
         </p>

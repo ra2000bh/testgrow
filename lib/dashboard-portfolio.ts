@@ -107,11 +107,9 @@ export function computePortfolioUsd(params: {
   pendingByCompanyId: Record<string, number>;
   prices: Record<string, number>;
 }): number {
-  const { growBalance, investments, pendingByCompanyId, prices } = params;
-  const pGrow = prices["GROW"] ?? 0;
-  let total = growBalance * pGrow;
+  const { investments, pendingByCompanyId, prices } = params;
+  let total = 0;
   for (const inv of investments) {
-    total += inv.tokensInvested * pGrow;
     const p = prices[inv.assetCode] ?? 0;
     const pending = pendingByCompanyId[inv.companyId] ?? 0;
     total += pending * p;
