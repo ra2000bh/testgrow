@@ -1,9 +1,8 @@
 import { companies } from "@/lib/companies";
 import type { Investment } from "@/models/User";
 
-// DEV MODE: rewards every 1 minute — change to 24h for production
-export const REWARD_ACCRUAL_MS = 60 * 1000;
-// export const REWARD_ACCRUAL_MS = 24 * 60 * 60 * 1000;
+// Production accrual interval: rewards are minted once every 24 hours.
+export const REWARD_ACCRUAL_MS = 24 * 60 * 60 * 1000;
 
 /** @deprecated use REWARD_ACCRUAL_MS */
 export const DAY_MS = REWARD_ACCRUAL_MS;

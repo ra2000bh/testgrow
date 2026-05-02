@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Gift } from "lucide-react";
 import { companyBrandGradient, getCompanyById } from "@/lib/companies";
@@ -35,7 +36,9 @@ export function DashboardRewardsPanel({
   onClaimAll: () => void;
   claimAllDisabled: boolean;
 }) {
+  const [brokenLogos, setBrokenLogos] = useState<Record<string, true>>({});
   const active = investments.filter((i) => i.tokensInvested > 0);
+  const logoSrc = (assetCode: string) => `/${assetCode.toLowerCase()}.png`;
 
   if (active.length === 0) {
     return (
@@ -83,7 +86,21 @@ export function DashboardRewardsPanel({
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white shadow-inner"
                 style={{ background: grad }}
               >
-                {initials(inv.companyName)}
+                {brokenLogos[inv.assetCode] ? (
+                  initials(inv.companyName)
+                ) : (
+                  <img
+                    src={logoSrc(inv.assetCode)}
+                    alt={`${inv.companyName} logo`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    onError={() =>
+                      setBrokenLogos((prev) =>
+                        prev[inv.assetCode] ? prev : { ...prev, [inv.assetCode]: true },
+                      )
+                    }
+                  />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

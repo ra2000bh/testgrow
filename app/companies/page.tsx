@@ -86,7 +86,7 @@ export default function CompaniesPage() {
     const x = Math.round(Math.max(0, Math.min(maxGrow, v)));
     setSliderVal(x);
     setAmount(x);
-    setAmountInput(x === 0 ? "" : x.toString());
+    setAmountInput(x.toString());
   };
 
   const syncNumberInput = (raw: string) => {
@@ -154,7 +154,7 @@ export default function CompaniesPage() {
       const clamped = Math.max(0, Math.min(data.growBalance, amount));
       setSliderVal(clamped);
       setAmount(clamped);
-      setAmountInput(clamped === 0 ? "" : clamped.toString());
+      setAmountInput(clamped.toString());
     } catch {
       setSheetError("Could not refresh balance from Stellar.");
     } finally {
@@ -259,7 +259,7 @@ export default function CompaniesPage() {
                     setLiveMaxGrow(null);
                     setSliderVal(start);
                     setAmount(start);
-                    setAmountInput(start === 0 ? "" : start.toString());
+                    setAmountInput(start.toString());
                     void refreshInvestableBalance();
                   }}
                   disabled={!user || maxGrow <= 0}
@@ -358,6 +358,9 @@ export default function CompaniesPage() {
                   step={1}
                   value={amountInput}
                   onChange={(e) => syncNumberInput(e.target.value)}
+                  onFocus={() => {
+                    if (amountInput === "0") setAmountInput("");
+                  }}
                   onBlur={() => {
                     if (amountInput.trim() === "") {
                       setAmountInput("0");
@@ -372,7 +375,7 @@ export default function CompaniesPage() {
                 You commit app GROW to this stake. Rewards accrue as{" "}
                 <span className="font-semibold text-[var(--text-primary)]">{company.assetCode}</span> at{" "}
                 <span className="font-semibold sg-tabular">{company.dailyRate.toFixed(2)}</span> per 1 GROW staked per
-                accrual period. Claim from <span className="font-medium">Rewards</span> — payouts are sent from the
+                accrual period. Claim from <span className="font-medium">Rewards</span> - payouts are sent from the
                 publisher wallet (trustline required).
               </p>
               <p className="sg-text-xs text-[var(--text-muted)]">
