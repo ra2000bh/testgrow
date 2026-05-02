@@ -26,6 +26,7 @@ export default function CompaniesPage() {
   const [investSubmitting, setInvestSubmitting] = useState(false);
   const [liveMaxGrow, setLiveMaxGrow] = useState<number | null>(null);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
+  const [brokenLogos, setBrokenLogos] = useState<Record<string, true>>({});
   const listRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -164,6 +165,8 @@ export default function CompaniesPage() {
   const actionBtn =
     "w-full !min-h-[40px] justify-center gap-1 px-3 py-2 text-[12px] leading-tight font-semibold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:min-h-4 [&>svg]:min-w-4 [&>svg]:shrink-0";
 
+  const logoSrc = (assetCode: string) => `/${assetCode.toLowerCase()}.png`;
+
   return (
     <section className="relative pb-4 pt-4">
       <div ref={listRef} className="space-y-3">
@@ -178,12 +181,29 @@ export default function CompaniesPage() {
               data-page-child
             >
               <div className="flex gap-3">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] text-[12px] font-semibold text-white"
-                  style={{ background: companyBrandGradient(c) }}
-                  aria-hidden
-                >
-                  {companyInitials(c.name)}
+                <div className="h-11 w-11 shrink-0" aria-hidden>
+                  {brokenLogos[c.assetCode] ? (
+                    <div
+                      className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] text-[12px] font-semibold text-white"
+                      style={{ background: companyBrandGradient(c) }}
+                    >
+                      {companyInitials(c.name)}
+                    </div>
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white p-1.5">
+                      <img
+                        src={logoSrc(c.assetCode)}
+                        alt={`${c.name} logo`}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                        onError={() =>
+                          setBrokenLogos((prev) =>
+                            prev[c.assetCode] ? prev : { ...prev, [c.assetCode]: true },
+                          )
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="sg-text-md font-bold text-[var(--text-primary)]">{c.name}</h2>
@@ -193,6 +213,9 @@ export default function CompaniesPage() {
                   </div>
                   <p className="sg-text-sm mt-2 font-semibold leading-[var(--text-sm-leading)] text-[var(--text-primary)]">
                     +{c.dailyRate.toFixed(2)} {c.assetCode} per GROW · daily
+                  </p>
+                  <p className="sg-text-xs mt-1 text-[var(--text-muted)]">
+                    Est. token price: ${c.estimatedPriceUsd.toFixed(2)} USD
                   </p>
                 </div>
               </div>

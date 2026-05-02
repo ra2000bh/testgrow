@@ -22,6 +22,9 @@ function seedFromSymbol(symbol: string): number {
 
 /** Deterministic pseudo prices for demo UI (not a live market feed). */
 export function baseUsdPrice(symbol: string): number {
+  const company = companies.find((c) => c.assetCode === symbol);
+  if (company) return company.estimatedPriceUsd;
+  if (symbol === GROW_ASSET_CODE) return 1;
   const rnd = mulberry32(seedFromSymbol(symbol));
   const span = 0.35 + rnd() * 1.25;
   return 0.12 + span;
