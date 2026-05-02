@@ -190,11 +190,11 @@ export default function CompaniesPage() {
                       {companyInitials(c.name)}
                     </div>
                   ) : (
-                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white p-1.5">
+                    <div className="h-11 w-11 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white">
                       <img
                         src={logoSrc(c.assetCode)}
                         alt={`${c.name} logo`}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full object-cover"
                         loading="lazy"
                         onError={() =>
                           setBrokenLogos((prev) =>

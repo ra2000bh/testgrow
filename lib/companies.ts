@@ -38,7 +38,7 @@ export const companies: CompanyConfig[] = [
     industry: "Quick-service restaurant",
     description:
       "Fast-casual Mexican restaurant chain focused on fresh ingredients, digital ordering, and high-throughput store formats across core Australian urban markets.",
-    estimatedPriceUsd: 19.4,
+    estimatedPriceUsd: 1.38,
     dailyRate: 0.35,
     assetCode: "GYG",
     issuer,
@@ -52,7 +52,7 @@ export const companies: CompanyConfig[] = [
     industry: "Premium burger chain",
     description:
       "Australian better-burger brand with a health-forward menu, localized community positioning, and a footprint centered on high-traffic suburban and CBD locations.",
-    estimatedPriceUsd: 11.8,
+    estimatedPriceUsd: 1.21,
     dailyRate: 0.3,
     assetCode: "GRILLD",
     issuer,
@@ -66,7 +66,7 @@ export const companies: CompanyConfig[] = [
     industry: "Fashion accessories retail",
     description:
       "Global fast-fashion jewelry retailer operating a high-turnover product model and compact mall locations aimed at frequent trend-based purchases.",
-    estimatedPriceUsd: 27.6,
+    estimatedPriceUsd: 1.47,
     dailyRate: 0.41,
     assetCode: "LOVISA",
     issuer,
@@ -80,7 +80,7 @@ export const companies: CompanyConfig[] = [
     industry: "Consumer electronics retail",
     description:
       "Major electronics and home entertainment retailer known for strong in-store execution, broad category coverage, and value-led promotional strategy.",
-    estimatedPriceUsd: 44.2,
+    estimatedPriceUsd: 1.56,
     dailyRate: 0.29,
     assetCode: "JBHIFI",
     issuer,
@@ -94,7 +94,7 @@ export const companies: CompanyConfig[] = [
     industry: "Travel services",
     description:
       "Leisure and corporate travel agency network with omnichannel booking capability and earnings leverage to international travel demand recovery.",
-    estimatedPriceUsd: 15.7,
+    estimatedPriceUsd: 1.29,
     dailyRate: 0.33,
     assetCode: "FLIGHTC",
     issuer,
@@ -108,7 +108,7 @@ export const companies: CompanyConfig[] = [
     industry: "Online furniture and homewares",
     description:
       "Digital-first home retailer with an asset-light marketplace model, wide assortment depth, and margin focus through scalable e-commerce operations.",
-    estimatedPriceUsd: 9.9,
+    estimatedPriceUsd: 1.18,
     dailyRate: 0.38,
     assetCode: "TMPLW",
     issuer,
@@ -122,7 +122,7 @@ export const companies: CompanyConfig[] = [
     industry: "Beverage drive-thru chain",
     description:
       "High-growth coffee chain centered on drive-thru convenience, strong unit economics, and new store expansion across underpenetrated U.S. regions.",
-    estimatedPriceUsd: 31.5,
+    estimatedPriceUsd: 1.52,
     dailyRate: 0.47,
     assetCode: "DUTCHB",
     issuer,
@@ -136,7 +136,7 @@ export const companies: CompanyConfig[] = [
     industry: "Chicken QSR franchisor",
     description:
       "Asset-light franchise model specializing in chicken wings with digital ordering strength, strong same-store sales momentum, and global expansion potential.",
-    estimatedPriceUsd: 58.4,
+    estimatedPriceUsd: 1.62,
     dailyRate: 0.52,
     assetCode: "WINGSTOP",
     issuer,
@@ -150,7 +150,7 @@ export const companies: CompanyConfig[] = [
     industry: "Premium burger restaurant",
     description:
       "Modern burger brand with premium positioning, urban and suburban footprint growth, and improving throughput from menu and kitchen optimization.",
-    estimatedPriceUsd: 24.1,
+    estimatedPriceUsd: 1.43,
     dailyRate: 0.4,
     assetCode: "SHAKESHK",
     issuer,
@@ -164,7 +164,7 @@ export const companies: CompanyConfig[] = [
     industry: "Beauty specialty retail",
     description:
       "Large U.S. beauty retailer combining prestige and mass brands with loyalty-led repeat demand and omnichannel fulfillment capabilities.",
-    estimatedPriceUsd: 48.3,
+    estimatedPriceUsd: 1.58,
     dailyRate: 0.31,
     assetCode: "ULTA",
     issuer,
@@ -178,7 +178,7 @@ export const companies: CompanyConfig[] = [
     industry: "Fitness center franchisor",
     description:
       "Value-priced gym franchise focused on high member volume, recurring subscription revenue, and efficient unit rollout in broad demographics.",
-    estimatedPriceUsd: 22.7,
+    estimatedPriceUsd: 1.36,
     dailyRate: 0.36,
     assetCode: "PLNTFIT",
     issuer,
@@ -192,7 +192,7 @@ export const companies: CompanyConfig[] = [
     industry: "Daytime dining restaurant",
     description:
       "Breakfast and brunch restaurant concept with daytime-only operations, growing new-unit pipeline, and category demand for experience-led casual dining.",
-    estimatedPriceUsd: 17.2,
+    estimatedPriceUsd: 1.31,
     dailyRate: 0.34,
     assetCode: "FRSTWCH",
     issuer,
