@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -68,15 +68,43 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserPayload | null>(null);
   const [market, setMarket] = useState<MarketPayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [snapshotAt, setSnapshotAt] = useState(() => Date.now());
   const [clock, setClock] = useState(0);
   const [localPrices, setLocalPrices] = useState<Record<string, number>>({});
   const [chartRange, setChartRange] = useState<ChartRange>("3M");
   const [chartAnimKey, setChartAnimKey] = useState(0);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [claimNotice, setClaimNotice] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [loadError, setLoadError] = useState("");
+  const claimNoticeTimerRef = useRef<number | null>(null);
+
+  const showClaimNotice = useCallback((kind: "success" | "error", text: string) => {
+    if (claimNoticeTimerRef.current) window.clearTimeout(claimNoticeTimerRef.current);
+    setClaimNotice({ kind, text });
+    claimNoticeTimerRef.current = window.setTimeout(() => {
+      setClaimNotice(null);
+      claimNoticeTimerRef.current = null;
+    }, 3500);
+  }, []);
+
+  const toFriendlyClaimError = useCallback((message: unknown) => {
+    if (typeof message !== "string" || !message.trim()) {
+      return "Something went wrong while sending rewards. Please contact support.";
+    }
+    const msg = message.trim();
+    const lower = msg.toLowerCase();
+    if (lower.includes("trustline")) return msg;
+    if (lower.includes("no rewards")) return "No claimable rewards yet. Please wait for the next reward window.";
+    if (lower.includes("wallet not verified")) return "Please verify your wallet before claiming rewards.";
+    if (lower.includes("network") || lower.includes("horizon")) {
+      return "Stellar network is temporarily unavailable. Please try again shortly.";
+    }
+    return "Something went wrong while sending rewards. Please contact support.";
+  }, []);
 
   const reload = useCallback(() => {
     const telegramId = getTelegramId();
@@ -93,7 +121,6 @@ export default function DashboardPage() {
     ]).then(([u, m]) => {
       if (u) {
         setUser(u as UserPayload);
-        setSnapshotAt(Date.now());
       }
       if (m) setMarket(m as MarketPayload);
       setLoading(false);
@@ -111,6 +138,12 @@ export default function DashboardPage() {
   useEffect(() => {
     const id = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (claimNoticeTimerRef.current) window.clearTimeout(claimNoticeTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -143,16 +176,13 @@ export default function DashboardPage() {
   }, [market]);
 
   const pendingByCompanyId = useMemo(() => {
-    void clock;
     if (!user) return {};
-    const elapsedMin = (Date.now() - snapshotAt) / 60_000;
     const map: Record<string, number> = {};
     for (const inv of user.investments) {
-      const rate = inv.ratePerMinute ?? 0;
-      map[inv.companyId] = inv.accumulatedReward + rate * elapsedMin;
+      map[inv.companyId] = Math.max(0, inv.accumulatedReward);
     }
     return map;
-  }, [user, snapshotAt, clock]);
+  }, [user]);
 
   const portfolioUsd = useMemo(() => {
     if (!user) return 0;
@@ -271,7 +301,13 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ telegramId: getTelegramId(), claimAll: true }),
       });
-      if (res.ok) await reload();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showClaimNotice("error", toFriendlyClaimError((data as { message?: unknown }).message));
+        return;
+      }
+      showClaimNotice("success", "Rewards sent successfully to your wallet.");
+      await reload();
     } finally {
       setClaimingId(null);
     }
@@ -285,7 +321,13 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
       });
-      if (res.ok) await reload();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showClaimNotice("error", toFriendlyClaimError((data as { message?: unknown }).message));
+        return;
+      }
+      showClaimNotice("success", "Reward sent successfully to your wallet.");
+      await reload();
     } finally {
       setClaimingId(null);
     }
@@ -339,6 +381,19 @@ export default function DashboardPage() {
       className="dash-root relative -mx-4 w-[calc(100%+2rem)] max-w-[calc(100%+2rem)] px-4 pb-28 pt-2"
       data-page-child
     >
+      {claimNotice ? (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-40 w-[calc(100%-1rem)] max-w-[480px] -translate-x-1/2 px-1">
+          <div
+            className={`rounded-md border px-3 py-2 text-[12px] font-medium shadow-lg ${
+              claimNotice.kind === "success"
+                ? "border-[var(--dash-teal)] bg-[rgba(45,212,191,0.14)] text-[var(--dash-teal)]"
+                : "border-[var(--dash-red)] bg-[rgba(248,113,113,0.14)] text-[var(--dash-red)]"
+            }`}
+          >
+            {claimNotice.text}
+          </div>
+        </div>
+      ) : null}
       <div className="dash-bg-image" aria-hidden />
       <div className="dash-inner space-y-3">
         <header

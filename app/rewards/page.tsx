@@ -1,11 +1,9 @@
 "use client";
 
-import gsap from "gsap";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getTelegramId } from "@/lib/client";
 import { companies } from "@/lib/companies";
 import { computeBatchProgress } from "@/lib/rewards";
-import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import {
@@ -13,10 +11,9 @@ import {
   animateListCards,
   animateLoadingPulse,
   killTweensOf,
-  prefersReducedMotion,
 } from "@/lib/animations";
 import Link from "next/link";
-import { Building2, CheckCircle2, Download } from "lucide-react";
+import { Building2, Download } from "lucide-react";
 import type { Investment } from "@/models/User";
 
 type Row = Investment & {
@@ -67,11 +64,34 @@ function RewardFigure({ value, trackId }: { value: number; trackId: string }) {
 
 export default function RewardsPage() {
   const [rows, setRows] = useState<Row[]>([]);
-  const [tick, setTick] = useState(0);
   const [claiming, setClaiming] = useState<"all" | string | null>(null);
-  const [error, setError] = useState("");
-  const [sentId, setSentId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = (kind: "success" | "error", text: string) => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    setToast({ kind, text });
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3500);
+  };
+
+  const toFriendlyClaimError = (message: unknown) => {
+    if (typeof message !== "string" || !message.trim()) {
+      return "Something went wrong while sending rewards. Please contact support.";
+    }
+    const msg = message.trim();
+    const lower = msg.toLowerCase();
+    if (lower.includes("trustline")) return msg;
+    if (lower.includes("no rewards")) return "No claimable rewards yet. Please wait for the next reward window.";
+    if (lower.includes("wallet not verified")) return "Please verify your wallet before claiming rewards.";
+    if (lower.includes("network") || lower.includes("horizon")) {
+      return "Stellar network is temporarily unavailable. Please try again shortly.";
+    }
+    return "Something went wrong while sending rewards. Please contact support.";
+  };
 
   const load = () => {
     fetch(`/api/user?telegramId=${encodeURIComponent(getTelegramId())}`)
@@ -87,8 +107,9 @@ export default function RewardsPage() {
   }, []);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
-    return () => window.clearInterval(id);
+    return () => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -97,57 +118,33 @@ export default function RewardsPage() {
 
   const pendingForRow = (r: Row) => {
     if (r.rewardsEligible === false) return 0;
-    const rate = r.ratePerMinute ?? 0;
-    return Math.max(0, r.accumulatedReward + (rate * tick) / 60);
+    return Math.max(0, r.accumulatedReward);
   };
 
   const totalPending = rows.reduce((s, r) => s + pendingForRow(r), 0);
 
-  const runCountDown = (el: HTMLElement | null, from: number) => {
-    if (!el) return;
-    killTweensOf(el);
-    if (prefersReducedMotion()) {
-      el.textContent = "0.00";
-      return;
-    }
-    const state = { n: from };
-    gsap.to(state, {
-      n: 0,
-      duration: 0.8,
-      ease: "power2.out",
-      onUpdate: () => {
-        el.textContent = state.n.toFixed(2);
-      },
-    });
-  };
-
   const claim = async (companyId?: string) => {
-    setError("");
     setClaiming(companyId ?? "all");
     const body = companyId
       ? { telegramId: getTelegramId(), companyId }
       : { telegramId: getTelegramId(), claimAll: true };
-    const res = await fetch("/api/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    setClaiming(null);
-    if (!res.ok || !data.success) return setError(data.message || "Claim failed.");
-
-    if (companyId) {
-      const row = rows.find((r) => r.companyId === companyId);
-      const amt = row ? pendingForRow(row) : 0;
-      const el = document.querySelector<HTMLElement>(`[data-reward-fig="${companyId}"]`);
-      runCountDown(el, amt);
-      setSentId(companyId);
-      window.setTimeout(() => {
-        setSentId(null);
-        load();
-      }, 1400);
-    } else {
+    try {
+      const res = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      setClaiming(null);
+      if (!res.ok || !data.success) {
+        showToast("error", toFriendlyClaimError((data as { message?: unknown }).message));
+        return;
+      }
+      showToast("success", companyId ? "Reward sent to your wallet." : "All available rewards were sent.");
       load();
+    } catch {
+      setClaiming(null);
+      showToast("error", "Network error while claiming rewards.");
     }
   };
 
@@ -176,12 +173,26 @@ export default function RewardsPage() {
         </Card>
       ) : null}
 
+      {toast ? (
+        <div className="fixed left-1/2 top-3 z-40 w-[calc(100%-1.5rem)] max-w-[480px] -translate-x-1/2 px-2">
+          <div
+            className={`rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium shadow-lg ${
+              toast.kind === "success"
+                ? "border-[var(--success)] bg-[rgba(16,185,129,0.12)] text-[var(--success)]"
+                : "border-[var(--error)] bg-[rgba(248,113,113,0.12)] text-[var(--error)]"
+            }`}
+          >
+            {toast.text}
+          </div>
+        </div>
+      ) : null}
+
       <div ref={listRef} className="space-y-3">
         {rows.map((inv) => {
           const company = companies.find((c) => c.id === inv.companyId);
           const meta = computeBatchProgress(inv);
           const pending = pendingForRow(inv);
-          const canClaim = pending > 0 && inv.rewardsEligible !== false;
+          const canClaim = pending > 0 && inv.rewardsEligible !== false && meta.batchesReady > 0;
           const busy = claiming === inv.companyId;
           return (
             <Card key={inv.companyId} data-stagger-card className="space-y-3 border-[var(--border)]" data-page-child>
@@ -198,40 +209,36 @@ export default function RewardsPage() {
                   ? `${company.dailyRate.toFixed(2)} ${inv.assetCode} per GROW staked · per accrual interval`
                   : null}
               </p>
+              {meta.batchesReady === 0 && inv.rewardsEligible !== false ? (
+                <p className="sg-text-sm text-[var(--text-muted)]">
+                  Next claim window in ~{Math.ceil(meta.msUntilNextBatch / 60_000)} min.
+                </p>
+              ) : null}
               {inv.rewardsEligible === false && inv.pausedReason ? (
                 <p className="sg-text-sm font-medium text-[var(--error)]">{inv.pausedReason}</p>
               ) : null}
-              {sentId === inv.companyId ? (
-                <div className="flex items-center gap-2 text-[var(--success)]">
-                  <CheckCircle2 size={16} aria-hidden />
-                  <span className="sg-text-sm font-medium">Sent to your wallet</span>
-                </div>
-              ) : (
-                <Button
-                  variant="primary"
-                  block
-                  disabled={!canClaim || Boolean(claiming)}
-                  onClick={() => claim(inv.companyId)}
-                >
-                  {busy ? (
-                    <>
-                      <InlineLoadingDot />
-                      <span>Sending…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download size={16} aria-hidden />
-                      <span>Claim</span>
-                    </>
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="primary"
+                block
+                disabled={!canClaim || Boolean(claiming)}
+                onClick={() => claim(inv.companyId)}
+              >
+                {busy ? (
+                  <>
+                    <InlineLoadingDot />
+                    <span>Sending…</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} aria-hidden />
+                    <span>Claim</span>
+                  </>
+                )}
+              </Button>
             </Card>
           );
         })}
       </div>
-
-      {error ? <ErrorCard text={error} /> : null}
 
       <div
         className={`pointer-events-none fixed left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 px-4 transition-transform duration-300 ease-out ${
@@ -245,7 +252,7 @@ export default function RewardsPage() {
           <Button
             variant="primary"
             block
-            disabled={totalPending <= 0 || Boolean(claiming)}
+            disabled={totalPending <= 0 || rows.every((r) => computeBatchProgress(r).batchesReady === 0) || Boolean(claiming)}
             onClick={() => claim()}
           >
             {claiming === "all" ? (
