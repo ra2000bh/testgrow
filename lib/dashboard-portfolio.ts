@@ -11,9 +11,18 @@ const RANGE_DAYS: Record<ChartRange, number> = {
 };
 
 export function filterByRange(points: PricePoint[], range: ChartRange): PricePoint[] {
+  if (points.length === 0) return [];
   const days = RANGE_DAYS[range];
-  const cutoff = Date.now() - days * 86400000;
-  return points.filter((p) => new Date(p.t + "T12:00:00").getTime() >= cutoff);
+  let anchorMs = Date.now();
+  for (const p of points) {
+    const ms = new Date(p.t + "T12:00:00").getTime();
+    if (Number.isFinite(ms) && ms > anchorMs) anchorMs = ms;
+  }
+  const cutoff = anchorMs - days * 86400000;
+  const within = points.filter((p) => new Date(p.t + "T12:00:00").getTime() >= cutoff);
+  if (within.length > 0) return within;
+  const last = points[points.length - 1];
+  return last ? [last] : [];
 }
 
 function priceOnOrBefore(series: PricePoint[], tMs: number): number | null {

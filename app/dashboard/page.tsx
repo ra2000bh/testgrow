@@ -234,16 +234,6 @@ export default function DashboardPage() {
     }));
   }, [market, localPrices]);
 
-  const totalPendingUsd = useMemo(() => {
-    if (!user) return 0;
-    let s = 0;
-    for (const inv of user.investments) {
-      const p = localPrices[inv.assetCode] ?? 0;
-      s += (pendingByCompanyId[inv.companyId] ?? 0) * p;
-    }
-    return s;
-  }, [user, pendingByCompanyId, localPrices]);
-
   const insightLines = useMemo(() => {
     void clock;
     if (!user) return [];
@@ -267,15 +257,13 @@ export default function DashboardPage() {
         ? `Next accrual window: ~${nextMin} min until the next reward batch boundary (estimate).`
         : "No active stakes - accruals start after you invest.";
 
-    const pendLine = `Pending rewards (mark-to-market): ~$${totalPendingUsd.toFixed(2)} USD across positions.`;
-
     const driftLine =
       Math.abs(deltaUsd) < 0.0001
         ? "Portfolio drift: flat vs prior close on the blended benchmark."
         : `Portfolio drift: ${deltaUsd >= 0 ? "+" : ""}$${deltaUsd.toFixed(2)} (${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(2)}%) vs prior close.`;
 
-    return [bestLine, accrualLine, pendLine, driftLine];
-  }, [user, totalPendingUsd, deltaUsd, deltaPct, clock]);
+    return [bestLine, accrualLine, driftLine];
+  }, [user, deltaUsd, deltaPct, clock]);
 
   const claimAllDisabled = useMemo(() => {
     if (!user) return true;
