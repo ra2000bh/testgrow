@@ -326,7 +326,7 @@ export default function WalletPage() {
           <div className="space-y-1">
             <p className="sg-text-md font-semibold text-[var(--text-primary)]">New Stellar address</p>
             <p className="sg-text-sm text-[var(--text-secondary)]">
-              After saving, you will verify again with 0.01 XLM to the memo wallet.
+              After saving, verify by sending XLM (any amount) to the memo wallet with your memo code.
             </p>
           </div>
           <div className="space-y-2">
@@ -409,7 +409,7 @@ export default function WalletPage() {
             </div>
           </div>
           <p className="sg-text-sm text-[var(--text-muted)]">
-            You can link a different Stellar address any time. Doing so will require a new 0.01 XLM verification.
+            You can link a different Stellar address any time. Doing so will require a new memo-wallet verification payment.
           </p>
           <Button type="button" variant="secondary" block onClick={() => setChangeAddressMode(true)}>
             Link a different Stellar address
@@ -496,7 +496,7 @@ export default function WalletPage() {
           </div>
           <ol className="sg-text-sm list-decimal space-y-2 pl-4 text-[var(--text-secondary)]">
             <li>Open Lobstr or Solar wallet</li>
-            <li>Send 0.01 XLM to the memo wallet with your memo code</li>
+            <li>Send XLM (any amount) to the memo wallet — the memo code must match exactly</li>
             <li>Verification confirms automatically, or tap “Check now” below</li>
           </ol>
         </div>
@@ -511,7 +511,7 @@ export default function WalletPage() {
           {checkBusy ? (
             <span>Checking Horizon…</span>
           ) : (
-            <span>I’ve sent 0.01 XLM — check now</span>
+            <span>I’ve sent XLM — check now</span>
           )}
         </Button>
         {checkMessage ? (

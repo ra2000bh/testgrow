@@ -162,7 +162,8 @@ export async function findVerificationPayment(params: {
   for (const payment of records.records) {
     if (payment.type !== "payment") continue;
     if (payment.asset_type !== "native") continue;
-    if (Number(payment.amount) !== 0.01) continue;
+    const xlm = Number(payment.amount);
+    if (!(xlm > 0)) continue;
     if (payment.from !== params.sourcePublicKey) continue;
 
     const tx = await payment.transaction();
