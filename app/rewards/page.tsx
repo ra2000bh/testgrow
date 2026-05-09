@@ -178,8 +178,8 @@ export default function RewardsPage() {
           <div
             className={`rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium shadow-lg ${
               toast.kind === "success"
-                ? "border-[var(--success)] bg-[rgba(16,185,129,0.12)] text-[var(--success)]"
-                : "border-[var(--error)] bg-[rgba(248,113,113,0.12)] text-[var(--error)]"
+                ? "border-[var(--success)] bg-[#052f2a] text-[#8ef3d5]"
+                : "border-[var(--error)] bg-[#3a1116] text-[#fca5a5]"
             }`}
           >
             {toast.text}

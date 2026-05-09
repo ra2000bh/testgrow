@@ -386,8 +386,8 @@ export default function DashboardPage() {
           <div
             className={`rounded-md border px-3 py-2 text-[12px] font-medium shadow-lg ${
               claimNotice.kind === "success"
-                ? "border-[var(--dash-teal)] bg-[rgba(45,212,191,0.14)] text-[var(--dash-teal)]"
-                : "border-[var(--dash-red)] bg-[rgba(248,113,113,0.14)] text-[var(--dash-red)]"
+                ? "border-[var(--dash-teal)] bg-[#052f2a] text-[#8ef3d5]"
+                : "border-[var(--dash-red)] bg-[#3a1116] text-[#fca5a5]"
             }`}
           >
             {claimNotice.text}
@@ -522,7 +522,7 @@ export default function DashboardPage() {
         <DashboardAllocationBar investments={user.investments} />
 
         <p className="text-center text-[10px] text-[var(--dash-label)]" data-page-child>
-          Prices and blended chart are illustrative (not live exchange data). Claims settle on-chain after verification.
+          Invest in what GROWS
         </p>
       </div>
     </div>

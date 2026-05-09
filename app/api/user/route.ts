@@ -4,7 +4,7 @@ import { User } from "@/models/User";
 import { computePendingReward, computeRewardRatePerMinute } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
-import { getWalletGrowBalance } from "@/lib/stellar";
+import { getIssuedAssetBalance, getWalletGrowBalance } from "@/lib/stellar";
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +40,22 @@ export async function GET(request: NextRequest) {
     const rewardsEligible = effectiveChainBalance + 1e-7 >= totalInvested;
 
     const userInvestments = user.investments as Investment[];
+    const walletAssetBalances = new Map<string, number>();
+    const assetsToFetch = new Map<string, { assetCode: string; issuer: string }>();
+    for (const investment of userInvestments) {
+      const key = `${investment.assetCode}:${investment.issuer}`;
+      if (!assetsToFetch.has(key)) {
+        assetsToFetch.set(key, { assetCode: investment.assetCode, issuer: investment.issuer });
+      }
+    }
+    if (user.isVerified && assetsToFetch.size > 0) {
+      await Promise.all(
+        [...assetsToFetch.entries()].map(async ([key, asset]) => {
+          const n = await getIssuedAssetBalance(user.publicKey, asset.assetCode, asset.issuer);
+          walletAssetBalances.set(key, typeof n === "number" && Number.isFinite(n) ? Math.max(0, n) : 0);
+        }),
+      );
+    }
     if (!rewardsEligible) {
       const now = new Date();
       for (const investment of userInvestments) {
@@ -57,6 +73,7 @@ export async function GET(request: NextRequest) {
         ...baseInvestment,
         accumulatedReward: rewardsEligible ? computePendingReward(investment) : 0,
         ratePerMinute: rewardsEligible ? computeRewardRatePerMinute(investment) : 0,
+        walletAssetBalance: walletAssetBalances.get(`${investment.assetCode}:${investment.issuer}`) ?? 0,
         rewardsEligible,
         pausedReason,
       };

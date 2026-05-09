@@ -43,7 +43,7 @@ export const companies: CompanyConfig[] = [
     assetCode: "GYG",
     issuer,
     brandColorFrom: "#f59e0b",
-    brandColorTo: "#b45309",
+    brandColorTo: "#d97706",
   },
   {
     id: "company-2",
@@ -56,7 +56,7 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.3,
     assetCode: "GRILLD",
     issuer,
-    brandColorFrom: "#84cc16",
+    brandColorFrom: "#65a30d",
     brandColorTo: "#3f6212",
   },
   {
@@ -70,8 +70,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.41,
     assetCode: "LOVISA",
     issuer,
-    brandColorFrom: "#f472b6",
-    brandColorTo: "#9d174d",
+    brandColorFrom: "#ec4899",
+    brandColorTo: "#be185d",
   },
   {
     id: "company-4",
@@ -84,7 +84,7 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.29,
     assetCode: "JBHIFI",
     issuer,
-    brandColorFrom: "#facc15",
+    brandColorFrom: "#eab308",
     brandColorTo: "#ca8a04",
   },
   {
@@ -98,8 +98,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.33,
     assetCode: "FLIGHTC",
     issuer,
-    brandColorFrom: "#60a5fa",
-    brandColorTo: "#1d4ed8",
+    brandColorFrom: "#38bdf8",
+    brandColorTo: "#2563eb",
   },
   {
     id: "company-6",
@@ -112,7 +112,7 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.38,
     assetCode: "TMPLW",
     issuer,
-    brandColorFrom: "#14b8a6",
+    brandColorFrom: "#2dd4bf",
     brandColorTo: "#0f766e",
   },
   {
@@ -126,8 +126,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.47,
     assetCode: "DUTCHB",
     issuer,
-    brandColorFrom: "#38bdf8",
-    brandColorTo: "#0369a1",
+    brandColorFrom: "#22d3ee",
+    brandColorTo: "#0e7490",
   },
   {
     id: "company-8",
@@ -140,8 +140,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.52,
     assetCode: "WINGSTOP",
     issuer,
-    brandColorFrom: "#22c55e",
-    brandColorTo: "#166534",
+    brandColorFrom: "#4ade80",
+    brandColorTo: "#15803d",
   },
   {
     id: "company-9",
@@ -154,8 +154,8 @@ export const companies: CompanyConfig[] = [
     dailyRate: 0.4,
     assetCode: "SHAKESHK",
     issuer,
-    brandColorFrom: "#4ade80",
-    brandColorTo: "#15803d",
+    brandColorFrom: "#86efac",
+    brandColorTo: "#16a34a",
   },
   {
     id: "company-10",
@@ -169,7 +169,7 @@ export const companies: CompanyConfig[] = [
     assetCode: "ULTA",
     issuer,
     brandColorFrom: "#f9a8d4",
-    brandColorTo: "#be185d",
+    brandColorTo: "#db2777",
   },
   {
     id: "company-11",
@@ -183,7 +183,7 @@ export const companies: CompanyConfig[] = [
     assetCode: "PLNTFIT",
     issuer,
     brandColorFrom: "#a78bfa",
-    brandColorTo: "#6d28d9",
+    brandColorTo: "#7c3aed",
   },
   {
     id: "company-12",
@@ -197,7 +197,7 @@ export const companies: CompanyConfig[] = [
     assetCode: "FRSTWCH",
     issuer,
     brandColorFrom: "#fb923c",
-    brandColorTo: "#c2410c",
+    brandColorTo: "#ea580c",
   },
 ];
 

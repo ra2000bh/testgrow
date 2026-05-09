@@ -50,6 +50,7 @@ export type Investment = {
   investedAt: Date;
   lastRewardAt: Date;
   accumulatedReward: number;
+  walletAssetBalance?: number;
   rewardsEligible?: boolean;
   pausedReason?: string | null;
 };

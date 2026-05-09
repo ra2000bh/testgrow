@@ -112,7 +112,8 @@ export function computePortfolioUsd(params: {
   for (const inv of investments) {
     const p = prices[inv.assetCode] ?? 0;
     const pending = pendingByCompanyId[inv.companyId] ?? 0;
-    total += pending * p;
+    const walletHeld = Math.max(0, inv.walletAssetBalance ?? 0);
+    total += (walletHeld + pending) * p;
   }
   return total;
 }
