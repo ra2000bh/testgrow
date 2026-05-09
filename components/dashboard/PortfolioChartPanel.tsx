@@ -14,6 +14,19 @@ import {
 } from "recharts";
 import type { ChartRange, ChartRow } from "@/lib/dashboard-portfolio";
 
+/** Human-readable date for chart UI (avoids long ISO strings in tooltips). */
+function formatChartDateLabel(raw: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(`${raw}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 function CustomTooltip({
   active,
   payload,
@@ -32,7 +45,7 @@ function CustomTooltip({
         boxShadow: "0 0 0 1px rgba(45,212,191,0.2)",
       }}
     >
-      <div className="text-[var(--dash-muted)]">{row.t}</div>
+      <div className="text-[var(--dash-muted)]">{formatChartDateLabel(row.t)}</div>
       <div className="font-semibold text-[var(--dash-gold)]">${row.display.toFixed(2)}</div>
     </div>
   );
@@ -173,7 +186,7 @@ export function PortfolioChartPanel({
       </div>
       {pinned ? (
         <p className="dash-tabular mt-2 min-h-[2.25rem] text-center text-[11px] leading-snug text-[var(--dash-muted)]">
-          <span className="text-[var(--dash-text)]">{pinned.t}</span>
+          <span className="text-[var(--dash-text)]">{formatChartDateLabel(pinned.t)}</span>
           <span className="mx-1.5 text-[var(--dash-border-bright)]">·</span>
           <span className="font-semibold text-[var(--dash-gold)]">${pinned.display.toFixed(2)}</span>
         </p>
