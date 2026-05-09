@@ -14,6 +14,7 @@ type UserState = {
   growBalance: number;
   investments: Array<{ companyId: string; tokensInvested: number }>;
 };
+type WithdrawTarget = { companyId: string; companyName: string } | null;
 
 export default function CompaniesPage() {
   const [user, setUser] = useState<UserState | null>(null);
@@ -24,6 +25,8 @@ export default function CompaniesPage() {
   const [error, setError] = useState("");
   const [sheetError, setSheetError] = useState("");
   const [investSubmitting, setInvestSubmitting] = useState(false);
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState<WithdrawTarget>(null);
   const [liveMaxGrow, setLiveMaxGrow] = useState<number | null>(null);
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
   const [brokenLogos, setBrokenLogos] = useState<Record<string, true>>({});
@@ -161,23 +164,26 @@ export default function CompaniesPage() {
     }
   };
 
-  const withdrawStake = async (companyId: string, companyName: string) => {
+  const requestWithdrawStake = (companyId: string, companyName: string) => {
+    setWithdrawTarget({ companyId, companyName });
+  };
+
+  const confirmWithdrawStake = async () => {
+    if (!withdrawTarget) return;
     setError("");
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Remove your entire stake in ${companyName}? Principal and any accrued rewards return to your GROW balance.`,
-      )
-    ) {
-      return;
-    }
+    setWithdrawSubmitting(true);
     const res = await fetch("/api/invest/withdraw", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyId }),
+      body: JSON.stringify({ companyId: withdrawTarget.companyId }),
     });
     const data = await res.json();
-    if (!res.ok || !data.success) return setError(data.message || "Could not remove stake.");
+    if (!res.ok || !data.success) {
+      setWithdrawSubmitting(false);
+      return setError(data.message || "Could not remove stake.");
+    }
+    setWithdrawSubmitting(false);
+    setWithdrawTarget(null);
     reload();
   };
 
@@ -271,8 +277,8 @@ export default function CompaniesPage() {
                   size="sm"
                   type="button"
                   className={actionBtn}
-                  disabled={!user || current <= 0}
-                  onClick={() => withdrawStake(c.id, c.name)}
+                  disabled={!user || current <= 0 || withdrawSubmitting}
+                  onClick={() => requestWithdrawStake(c.id, c.name)}
                 >
                   <MinusCircle aria-hidden />
                   <span>Remove stake</span>
@@ -286,6 +292,34 @@ export default function CompaniesPage() {
       {error ? (
         <div className="mt-4">
           <ErrorCard text={error} />
+        </div>
+      ) : null}
+
+      {withdrawTarget ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ background: "var(--overlay-scrim)" }}
+        >
+          <Card className="w-full max-w-sm space-y-3 border-[var(--border)]">
+            <p className="sg-text-md font-semibold text-[var(--text-primary)]">Remove stake?</p>
+            <p className="sg-text-sm text-[var(--text-secondary)]">
+              Remove your entire stake in <span className="font-medium">{withdrawTarget.companyName}</span>? Principal
+              and any accrued rewards return to your GROW balance.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setWithdrawTarget(null)}
+                disabled={withdrawSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" type="button" onClick={() => void confirmWithdrawStake()} disabled={withdrawSubmitting}>
+                {withdrawSubmitting ? "Removing..." : "Confirm"}
+              </Button>
+            </div>
+          </Card>
         </div>
       ) : null}
 

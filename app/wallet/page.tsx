@@ -49,6 +49,7 @@ export default function WalletPage() {
   const [checkMessage, setCheckMessage] = useState("");
   const [changeAddressMode, setChangeAddressMode] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [accountError, setAccountError] = useState("");
   const stepBarRef = useRef<HTMLDivElement>(null);
   const celebrateIconRef = useRef<HTMLDivElement>(null);
@@ -210,14 +211,6 @@ export default function WalletPage() {
 
   const deleteAccount = async () => {
     setAccountError("");
-    if (typeof window === "undefined") return;
-    if (
-      !window.confirm(
-        "Remove this wallet from StellarGrow? All portfolio data will be deleted. You must add a wallet again to use the app. This cannot be undone.",
-      )
-    ) {
-      return;
-    }
     initTelegramWebApp();
     await syncSessionCookie();
     const telegramId = getTelegramId();
@@ -237,6 +230,7 @@ export default function WalletPage() {
       setAccountError(data.message || "Could not remove account.");
       return;
     }
+    setDeleteConfirmOpen(false);
     setUser(null);
     dispatchSessionUpdate();
     router.replace("/wallet");
@@ -433,13 +427,40 @@ export default function WalletPage() {
             variant="destructive"
             block
             disabled={deleteBusy}
-            onClick={deleteAccount}
+            onClick={() => setDeleteConfirmOpen(true)}
           >
             <Trash2 size={16} aria-hidden />
             <span>{deleteBusy ? "Removing…" : "Remove wallet from app"}</span>
           </Button>
           {accountError ? <ErrorCard text={accountError} /> : null}
         </Card>
+
+        {deleteConfirmOpen ? (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            style={{ background: "var(--overlay-scrim)" }}
+          >
+            <Card className="w-full max-w-sm space-y-3 border-[var(--border)]">
+              <p className="sg-text-md font-semibold text-[var(--text-primary)]">Remove wallet from app?</p>
+              <p className="sg-text-sm text-[var(--text-secondary)]">
+                All portfolio data will be deleted. You must add a wallet again to use the app. This cannot be undone.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setDeleteConfirmOpen(false)}
+                  disabled={deleteBusy}
+                >
+                  Cancel
+                </Button>
+                <Button type="button" variant="destructive" onClick={() => void deleteAccount()} disabled={deleteBusy}>
+                  {deleteBusy ? "Removing..." : "Confirm"}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        ) : null}
       </section>
     );
   }
