@@ -53,6 +53,43 @@ export function portfolioSymbolsForAverage(
 
 export type ChartRow = { t: string; avg: number; display: number };
 
+function utcCalendarDay(isoOrDay: string): string | null {
+  const ms = new Date(isoOrDay).getTime();
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/**
+ * Ensures the chart ends at the current portfolio USD. Stored market ticks can lag
+ * (e.g. last DB write days ago) while the headline total uses live prices — without
+ * this, the line stops at the last historical tick date.
+ */
+export function mergeLivePortfolioPoint(
+  rows: ChartRow[],
+  portfolioUsd: number,
+  nowMs: number = Date.now(),
+): ChartRow[] {
+  if (!Number.isFinite(portfolioUsd) || portfolioUsd <= 0) return rows;
+  const live = portfolioUsd;
+  const today = utcCalendarDay(new Date(nowMs).toISOString());
+  if (!today) return rows;
+
+  if (rows.length === 0) {
+    return [{ t: new Date(nowMs).toISOString(), avg: live, display: live }];
+  }
+
+  const sorted = [...rows].sort((a, b) => a.t.localeCompare(b.t));
+  const last = sorted[sorted.length - 1];
+  const lastDay = utcCalendarDay(last.t);
+  if (lastDay === today) {
+    return sorted.map((r, i) =>
+      i === sorted.length - 1 ? { ...r, avg: live, display: live } : r,
+    );
+  }
+  sorted.push({ t: new Date(nowMs).toISOString(), avg: live, display: live });
+  return sorted;
+}
+
 export function buildPortfolioChartSeries(params: {
   range: ChartRange;
   holdingsBySymbol: Record<string, number>;

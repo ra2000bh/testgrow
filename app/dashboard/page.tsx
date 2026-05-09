@@ -26,6 +26,7 @@ import {
   buildPortfolioChartSeries,
   computePortfolioUsd,
   computeTodayChangeUsd,
+  mergeLivePortfolioPoint,
   portfolioSymbolsForAverage,
   type ChartRange,
 } from "@/lib/dashboard-portfolio";
@@ -228,21 +229,23 @@ export default function DashboardPage() {
 
   const chartRows3M = useMemo(() => {
     if (!user || chartSymbols.length === 0) return [];
-    return buildPortfolioChartSeries({
+    const built = buildPortfolioChartSeries({
       range: "3M",
       holdingsBySymbol,
       histories,
     });
-  }, [user, chartSymbols, holdingsBySymbol, histories]);
+    return mergeLivePortfolioPoint(built, portfolioUsd);
+  }, [user, chartSymbols, holdingsBySymbol, histories, portfolioUsd]);
 
   const chartRows = useMemo(() => {
     if (!user || chartSymbols.length === 0) return [];
-    return buildPortfolioChartSeries({
+    const built = buildPortfolioChartSeries({
       range: chartRange,
       holdingsBySymbol,
       histories,
     });
-  }, [user, chartRange, chartSymbols, holdingsBySymbol, histories]);
+    return mergeLivePortfolioPoint(built, portfolioUsd);
+  }, [user, chartRange, chartSymbols, holdingsBySymbol, histories, portfolioUsd]);
 
   const { deltaUsd, deltaPct } = useMemo(
     () => computeTodayChangeUsd(chartRows3M, portfolioUsd),
