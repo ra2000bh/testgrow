@@ -19,10 +19,12 @@ function base64UrlDecode(input: string) {
 
 function getSessionSecret() {
   const secret = process.env.SESSION_SECRET?.trim();
-  if (!secret) {
-    throw new Error("SESSION_SECRET is missing.");
+  if (secret) return secret;
+  // Dev fallback prevents local auth flow breakage when SESSION_SECRET is not set.
+  if (process.env.NODE_ENV !== "production") {
+    return "stellargrow-dev-session-secret-change-me";
   }
-  return secret;
+  throw new Error("SESSION_SECRET is missing.");
 }
 
 function signPayload(encodedPayload: string) {
