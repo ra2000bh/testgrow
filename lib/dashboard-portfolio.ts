@@ -1,10 +1,9 @@
 import type { PricePoint } from "@/lib/market-data";
 import type { Investment } from "@/models/User";
 
-export type ChartRange = "1D" | "1W" | "1M" | "3M";
+export type ChartRange = "1W" | "1M" | "3M";
 
 const RANGE_DAYS: Record<ChartRange, number> = {
-  "1D": 1,
   "1W": 7,
   "1M": 30,
   "3M": 90,
@@ -13,13 +12,14 @@ const RANGE_DAYS: Record<ChartRange, number> = {
 export function filterByRange(points: PricePoint[], range: ChartRange): PricePoint[] {
   if (points.length === 0) return [];
   const days = RANGE_DAYS[range];
-  let anchorMs = Date.now();
+  let anchorMs = -Infinity;
   for (const p of points) {
-    const ms = new Date(p.t + "T12:00:00").getTime();
+    const ms = new Date(p.t).getTime();
     if (Number.isFinite(ms) && ms > anchorMs) anchorMs = ms;
   }
+  if (!Number.isFinite(anchorMs) || anchorMs <= 0) return [];
   const cutoff = anchorMs - days * 86400000;
-  const within = points.filter((p) => new Date(p.t + "T12:00:00").getTime() >= cutoff);
+  const within = points.filter((p) => new Date(p.t).getTime() >= cutoff);
   if (within.length > 0) return within;
   const last = points[points.length - 1];
   return last ? [last] : [];
@@ -29,7 +29,7 @@ function priceOnOrBefore(series: PricePoint[], tMs: number): number | null {
   let best: number | null = null;
   let bestT = -Infinity;
   for (const p of series) {
-    const ms = new Date(p.t + "T12:00:00").getTime();
+    const ms = new Date(p.t).getTime();
     if (ms <= tMs && ms >= bestT) {
       bestT = ms;
       best = p.v;
@@ -53,16 +53,13 @@ export function portfolioSymbolsForAverage(
 
 export type ChartRow = { t: string; avg: number; display: number };
 
-/**
- * Chart path = average USD price of held symbols, then rescaled so the last point matches `portfolioUsd`.
- */
 export function buildPortfolioChartSeries(params: {
   range: ChartRange;
-  portfolioUsd: number;
-  symbols: string[];
+  holdingsBySymbol: Record<string, number>;
   histories: Record<string, PricePoint[]>;
 }): ChartRow[] {
-  const { range, portfolioUsd, symbols, histories } = params;
+  const { range, holdingsBySymbol, histories } = params;
+  const symbols = Object.keys(holdingsBySymbol).filter((s) => (holdingsBySymbol[s] ?? 0) > 0);
   if (symbols.length === 0) return [];
 
   const trimmed: Record<string, PricePoint[]> = {};
@@ -78,22 +75,17 @@ export function buildPortfolioChartSeries(params: {
 
   const rows: ChartRow[] = [];
   for (const d of dates) {
-    const tMs = new Date(d + "T12:00:00").getTime();
-    const parts: number[] = [];
+    const tMs = new Date(d).getTime();
+    let total = 0;
     for (const s of symbols) {
       const v = priceOnOrBefore(histories[s] ?? [], tMs);
-      if (v != null) parts.push(v);
+      const qty = holdingsBySymbol[s] ?? 0;
+      if (v != null && qty > 0) total += qty * v;
     }
-    if (parts.length === 0) continue;
-    const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
-    rows.push({ t: d, avg, display: 0 });
+    if (!(total > 0)) continue;
+    rows.push({ t: d, avg: total, display: total });
   }
-
-  const lastAvg = rows[rows.length - 1]?.avg;
-  if (!lastAvg || lastAvg <= 0) {
-    return rows.map((r) => ({ ...r, display: portfolioUsd }));
-  }
-  return rows.map((r) => ({ ...r, display: portfolioUsd * (r.avg / lastAvg) }));
+  return rows;
 }
 
 export function computeTodayChangeUsd(
@@ -127,12 +119,3 @@ export function computePortfolioUsd(params: {
   return total;
 }
 
-export function randomWalkPrices(prev: Record<string, number>): Record<string, number> {
-  const next: Record<string, number> = {};
-  for (const [k, v] of Object.entries(prev)) {
-    if (!(v > 0)) continue;
-    const jitter = (Math.random() - 0.5) * 0.004;
-    next[k] = Math.max(0.0001, v * (1 + jitter));
-  }
-  return next;
-}

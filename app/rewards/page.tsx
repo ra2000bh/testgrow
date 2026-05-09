@@ -65,6 +65,7 @@ export default function RewardsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [claiming, setClaiming] = useState<"all" | string | null>(null);
   const [toast, setToast] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [clock, setClock] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -106,6 +107,11 @@ export default function RewardsPage() {
   }, []);
 
   useEffect(() => {
+    const id = window.setInterval(() => setClock(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
     };
@@ -116,8 +122,10 @@ export default function RewardsPage() {
   }, [rows]);
 
   const pendingForRow = (r: Row) => {
+    void clock;
     if (r.rewardsEligible === false) return 0;
-    return Math.max(0, r.accumulatedReward);
+    const computed = computeBatchProgress(r).totalPending;
+    return Math.max(0, Math.max(r.accumulatedReward, computed));
   };
 
   const totalPending = rows.reduce((s, r) => s + pendingForRow(r), 0);

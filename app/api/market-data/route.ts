@@ -4,7 +4,7 @@ import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 
 export async function GET() {
   try {
-    const tokens = buildMarketSnapshot();
+    const tokens = await buildMarketSnapshot();
     return NextResponse.json(
       { tokens, generatedAt: new Date().toISOString() },
       { headers: CACHE_PRIVATE_NO_STORE },

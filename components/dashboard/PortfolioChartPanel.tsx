@@ -38,7 +38,7 @@ function CustomTooltip({
   );
 }
 
-const RANGE_TABS: ChartRange[] = ["1D", "1W", "1M", "3M"];
+const RANGE_TABS: ChartRange[] = ["1W", "1M", "3M"];
 
 type DotProps = { cx?: number; cy?: number; index?: number; payload?: ChartRow };
 

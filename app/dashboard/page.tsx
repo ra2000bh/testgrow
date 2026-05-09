@@ -27,7 +27,6 @@ import {
   computePortfolioUsd,
   computeTodayChangeUsd,
   portfolioSymbolsForAverage,
-  randomWalkPrices,
   type ChartRange,
 } from "@/lib/dashboard-portfolio";
 import { formatAddress } from "@/lib/stellar";
@@ -55,6 +54,12 @@ type UserPayload = {
   investments: EnrichedInvestment[];
 };
 
+const MARKET_POLL_MS: Record<ChartRange, number> = {
+  "1W": 3 * 60_000,
+  "1M": 2 * 60_000,
+  "3M": 2 * 60_000,
+};
+
 function changePctFromHistory(history: PricePoint[]): number {
   if (history.length < 2) return 0;
   const a = history[history.length - 2].v;
@@ -69,7 +74,6 @@ export default function DashboardPage() {
   const [market, setMarket] = useState<MarketPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState(0);
-  const [localPrices, setLocalPrices] = useState<Record<string, number>>({});
   const [chartRange, setChartRange] = useState<ChartRange>("3M");
   const [chartAnimKey, setChartAnimKey] = useState(0);
   const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -140,7 +144,7 @@ export default function DashboardPage() {
   }, [reload]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setClock(Date.now()), 1000);
+    const id = window.setInterval(() => setClock(Date.now()), 15_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -151,20 +155,20 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!market?.tokens?.length) return;
-    setLocalPrices((prev) => {
-      if (Object.keys(prev).length) return prev;
-      return Object.fromEntries(market.tokens.map((t) => [t.symbol, t.priceUsd]));
-    });
-  }, [market]);
-
-  useEffect(() => {
-    if (!market?.tokens?.length) return;
+    const intervalMs = MARKET_POLL_MS[chartRange];
     const id = window.setInterval(() => {
-      setLocalPrices((p) => (Object.keys(p).length ? randomWalkPrices(p) : p));
-    }, 60_000);
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/market-data")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((m) => {
+          if (m) setMarket(m as MarketPayload);
+        })
+        .catch(() => {
+          /* ignore transient market refresh failures */
+        });
+    }, intervalMs);
     return () => window.clearInterval(id);
-  }, [market]);
+  }, [chartRange]);
 
   useEffect(() => {
     setChartAnimKey((k) => k + 1);
@@ -180,13 +184,20 @@ export default function DashboardPage() {
   }, [market]);
 
   const pendingByCompanyId = useMemo(() => {
+    void clock;
     if (!user) return {};
     const map: Record<string, number> = {};
     for (const inv of user.investments) {
-      map[inv.companyId] = Math.max(0, inv.accumulatedReward);
+      const computed = computeBatchProgress(inv).totalPending;
+      map[inv.companyId] = Math.max(0, Math.max(inv.accumulatedReward, computed));
     }
     return map;
-  }, [user]);
+  }, [user, clock]);
+
+  const pricesBySymbol = useMemo(() => {
+    if (!market?.tokens) return {} as Record<string, number>;
+    return Object.fromEntries(market.tokens.map((t) => [t.symbol, t.priceUsd]));
+  }, [market]);
 
   const portfolioUsd = useMemo(() => {
     if (!user) return 0;
@@ -194,10 +205,21 @@ export default function DashboardPage() {
       growBalance: user.growBalance,
       investments: user.investments,
       pendingByCompanyId,
-      prices: localPrices,
+      prices: pricesBySymbol,
     });
     return Number.isFinite(v) && v >= 0 ? v : 0;
-  }, [user, pendingByCompanyId, localPrices]);
+  }, [user, pendingByCompanyId, pricesBySymbol]);
+
+  const holdingsBySymbol = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!user) return map;
+    for (const inv of user.investments) {
+      const pending = pendingByCompanyId[inv.companyId] ?? 0;
+      const walletHeld = Math.max(0, inv.walletAssetBalance ?? 0);
+      map[inv.assetCode] = (map[inv.assetCode] ?? 0) + walletHeld + pending;
+    }
+    return map;
+  }, [user, pendingByCompanyId]);
 
   const chartSymbols = useMemo(() => {
     if (!user) return [] as string[];
@@ -208,21 +230,19 @@ export default function DashboardPage() {
     if (!user || chartSymbols.length === 0) return [];
     return buildPortfolioChartSeries({
       range: "3M",
-      portfolioUsd,
-      symbols: chartSymbols,
+      holdingsBySymbol,
       histories,
     });
-  }, [user, portfolioUsd, chartSymbols, histories]);
+  }, [user, chartSymbols, holdingsBySymbol, histories]);
 
   const chartRows = useMemo(() => {
     if (!user || chartSymbols.length === 0) return [];
     return buildPortfolioChartSeries({
       range: chartRange,
-      portfolioUsd,
-      symbols: chartSymbols,
+      holdingsBySymbol,
       histories,
     });
-  }, [user, chartRange, portfolioUsd, chartSymbols, histories]);
+  }, [user, chartRange, chartSymbols, holdingsBySymbol, histories]);
 
   const { deltaUsd, deltaPct } = useMemo(
     () => computeTodayChangeUsd(chartRows3M, portfolioUsd),
@@ -233,10 +253,10 @@ export default function DashboardPage() {
     if (!market?.tokens) return [];
     return market.tokens.map((t) => ({
       symbol: t.symbol,
-      price: localPrices[t.symbol] ?? t.priceUsd,
+      price: t.priceUsd,
       changePct: changePctFromHistory(t.history),
     }));
-  }, [market, localPrices]);
+  }, [market]);
 
   const insightLines = useMemo(() => {
     void clock;
