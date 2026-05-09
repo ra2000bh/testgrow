@@ -5,14 +5,15 @@ import { computePendingReward, computeRewardRatePerMinute } from "@/lib/rewards"
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { getIssuedAssetBalance, getWalletGrowBalance } from "@/lib/stellar";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramId = request.nextUrl.searchParams.get("telegramId");
+    const telegramId = readTelegramIdFromSession(request);
     if (!telegramId) {
       return NextResponse.json(
-        { message: "telegramId is required." },
-        { status: 400, headers: CACHE_PRIVATE_NO_STORE },
+        { message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
     await connectToDatabase();

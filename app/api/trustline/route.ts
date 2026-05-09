@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
+import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 
 const schema = z.object({
-  telegramId: z.string().min(1),
   companyId: z.string().min(1),
   confirmed: z.boolean(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const { telegramId, companyId, confirmed } = schema.parse(await request.json());
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    const { companyId, confirmed } = schema.parse(await request.json());
     await connectToDatabase();
     const user = await User.findOne({ telegramId });
     if (!user) {

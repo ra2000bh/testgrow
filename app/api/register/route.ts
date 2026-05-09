@@ -4,9 +4,9 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { isValidStellarPublicKey } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
-  telegramId: z.string().min(1),
   publicKey: z.string().min(56).max(56),
 });
 
@@ -16,6 +16,13 @@ function generateVerificationCode() {
 
 export async function POST(request: NextRequest) {
   try {
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
     const payload = schema.parse(await request.json());
 
     if (!isValidStellarPublicKey(payload.publicKey)) {
@@ -27,11 +34,11 @@ export async function POST(request: NextRequest) {
 
     await connectToDatabase();
 
-    const byTelegram = await User.findOne({ telegramId: payload.telegramId });
+    const byTelegram = await User.findOne({ telegramId });
     if (byTelegram) {
       const keyTaken = await User.findOne({
         publicKey: payload.publicKey,
-        telegramId: { $ne: payload.telegramId },
+        telegramId: { $ne: telegramId },
       });
       if (keyTaken) {
         return NextResponse.json(
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await User.create({
-      telegramId: payload.telegramId,
+      telegramId,
       publicKey: payload.publicKey,
       verificationCode: generateVerificationCode(),
       verificationExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),

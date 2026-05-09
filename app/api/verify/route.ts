@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tryVerifyUserByPayment } from "@/lib/verification";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
-const schema = z.object({
-  telegramId: z.string().min(1),
-});
+const schema = z.object({});
 
 export async function POST(request: NextRequest) {
   try {
-    const { telegramId } = schema.parse(await request.json());
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    schema.parse(await request.json());
 
     const deadline = Date.now() + 30_000;
 

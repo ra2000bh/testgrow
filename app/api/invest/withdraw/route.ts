@@ -6,16 +6,23 @@ import { computePendingReward } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { getWalletGrowBalance } from "@/lib/stellar";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
-  telegramId: z.string().min(1),
   companyId: z.string().min(1),
 });
 
 /** Return principal + any accrued (unclaimed) rewards for this stake to GROW balance; remove the position. */
 export async function POST(request: NextRequest) {
   try {
-    const { telegramId, companyId } = schema.parse(await request.json());
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    const { companyId } = schema.parse(await request.json());
     await connectToDatabase();
     const user = await User.findOne({ telegramId });
     if (!user) {

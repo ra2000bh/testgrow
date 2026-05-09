@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 export async function getSessionFlags(request: NextRequest) {
-  const raw = request.cookies.get("stellargrow_telegram_id")?.value;
-  const telegramId = raw ? decodeURIComponent(raw.trim()) : "";
+  const telegramId = readTelegramIdFromSession(request) ?? "";
 
   if (!telegramId) {
     return { hasUser: false, isVerified: false };

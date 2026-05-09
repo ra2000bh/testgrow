@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { getTelegramId } from "@/lib/client";
 import { companies } from "@/lib/companies";
 import { computeBatchProgress } from "@/lib/rewards";
 import { Button } from "@/components/Button";
@@ -94,7 +93,7 @@ export default function RewardsPage() {
   };
 
   const load = () => {
-    fetch(`/api/user?telegramId=${encodeURIComponent(getTelegramId())}`)
+    fetch("/api/user")
       .then((r) => r.json())
       .then((data) => {
         const inv = (data.investments || []) as Row[];
@@ -125,9 +124,7 @@ export default function RewardsPage() {
 
   const claim = async (companyId?: string) => {
     setClaiming(companyId ?? "all");
-    const body = companyId
-      ? { telegramId: getTelegramId(), companyId }
-      : { telegramId: getTelegramId(), claimAll: true };
+    const body = companyId ? { companyId } : { claimAll: true };
     try {
       const res = await fetch("/api/claim", {
         method: "POST",

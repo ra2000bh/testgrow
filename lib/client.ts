@@ -2,31 +2,33 @@
 
 import { getTelegramUser } from "@/lib/telegram";
 
-function getTelegramIdFromCookie() {
-  if (typeof document === "undefined") return "";
-  const m = document.cookie.match(/(?:^|;\s*)stellargrow_telegram_id=([^;]*)/);
-  if (!m?.[1]) return "";
-  try {
-    return decodeURIComponent(m[1].trim());
-  } catch {
-    return m[1].trim();
-  }
-}
-
 export function getTelegramId() {
   const fromTelegram = getTelegramUser()?.id?.toString();
   if (fromTelegram) {
     localStorage.setItem("stellargrow_telegram_id", fromTelegram);
     return fromTelegram;
   }
-  return localStorage.getItem("stellargrow_telegram_id") || getTelegramIdFromCookie() || "";
+  return localStorage.getItem("stellargrow_telegram_id") || "";
 }
 
-export function syncSessionCookie() {
-  if (typeof document === "undefined") return;
-  const id = getTelegramId();
-  if (!id) return;
-  document.cookie = `stellargrow_telegram_id=${encodeURIComponent(id)}; path=/; max-age=31536000; SameSite=Lax`;
+export async function syncSessionCookie() {
+  if (typeof window === "undefined") return;
+  const tg = (
+    window as unknown as {
+      Telegram?: { WebApp?: { initData?: string } };
+    }
+  ).Telegram?.WebApp;
+  const initData = tg?.initData?.trim() || "";
+  const fallbackTelegramId = getTelegramId();
+  if (!initData && !fallbackTelegramId) return;
+  await fetch("/api/session/init", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      initData: initData || undefined,
+      telegramId: fallbackTelegramId || undefined,
+    }),
+  });
 }
 
 const SESSION_UPDATE_EVENT = "stellargrow:session-update";
@@ -39,6 +41,8 @@ export function disconnectSession() {
   } catch {
     /* ignore */
   }
-  document.cookie = "stellargrow_telegram_id=; path=/; max-age=0; SameSite=Lax";
+  fetch("/api/session/init", { method: "DELETE" }).catch(() => {
+    /* ignore */
+  });
   window.dispatchEvent(new Event(SESSION_UPDATE_EVENT));
 }

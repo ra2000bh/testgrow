@@ -5,9 +5,9 @@ import { getCompanyById } from "@/lib/companies";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { getWalletGrowBalance } from "@/lib/stellar";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
-  telegramId: z.string().min(1),
   companyId: z.string().min(1),
   amount: z.number().positive(),
 });
@@ -18,7 +18,14 @@ const schema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const { telegramId, companyId, amount } = schema.parse(await request.json());
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    const { companyId, amount } = schema.parse(await request.json());
     const company = getCompanyById(companyId);
     if (!company) {
       return NextResponse.json({ success: false, message: "Company not found." }, { status: 404 });

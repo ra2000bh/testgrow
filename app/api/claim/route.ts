@@ -7,15 +7,22 @@ import type { Investment } from "@/models/User";
 import { accountHasTrustline, sendBatchAssetPayments, toStellarAmount } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { getWalletGrowBalance } from "@/lib/stellar";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
-  telegramId: z.string().min(1),
   companyId: z.string().min(1).optional(),
   claimAll: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
     const body = schema.parse(await request.json());
     if (!body.claimAll && !body.companyId) {
       return NextResponse.json(
@@ -36,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const user = await User.findOne({ telegramId: body.telegramId });
+    const user = await User.findOne({ telegramId });
     if (!user) {
       return NextResponse.json(
         { success: false, message: "User not found." },

@@ -21,7 +21,7 @@ import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStri
 import { PortfolioChartPanel } from "@/components/dashboard/PortfolioChartPanel";
 import { companies, GROW_ASSET_CODE } from "@/lib/companies";
 import { GROW_TO_XLM_RATE, growBalanceToXlmDisplay } from "@/lib/grow-xlm";
-import { disconnectSession, getTelegramId } from "@/lib/client";
+import { disconnectSession } from "@/lib/client";
 import {
   buildPortfolioChartSeries,
   computePortfolioUsd,
@@ -107,9 +107,13 @@ export default function DashboardPage() {
   }, []);
 
   const reload = useCallback(() => {
-    const telegramId = getTelegramId();
     return Promise.all([
-      fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`).then((r) => {
+      fetch("/api/user").then((r) => {
+        if (r.status === 401) {
+          setUser(null);
+          router.replace("/wallet");
+          return null;
+        }
         if (r.status === 404) {
           setUser(null);
           router.replace("/wallet");
@@ -287,7 +291,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramId: getTelegramId(), claimAll: true }),
+        body: JSON.stringify({ claimAll: true }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -307,7 +311,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
+        body: JSON.stringify({ companyId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -328,7 +332,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/user/balance-sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramId: getTelegramId() }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

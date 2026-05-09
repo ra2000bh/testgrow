@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getTelegramId, syncSessionCookie } from "@/lib/client";
+import { syncSessionCookie } from "@/lib/client";
 import { initTelegramWebApp, setupTelegramBackButton } from "@/lib/telegram";
 import { BottomNav } from "@/components/BottomNav";
 import { PageWrapper } from "@/components/PageWrapper";
@@ -20,18 +20,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    syncSessionCookie();
+    syncSessionCookie().catch(() => {
+      /* ignore */
+    });
   }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
     const run = () => {
-      const id = getTelegramId();
-      if (!id) {
-        if (!cancelled) setVerified(false);
-        return;
-      }
-      fetch(`/api/user?telegramId=${encodeURIComponent(id)}`)
+      fetch("/api/user")
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (!cancelled) setVerified(Boolean(data?.isVerified));

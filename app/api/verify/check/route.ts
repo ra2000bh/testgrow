@@ -2,15 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tryVerifyUserByPayment } from "@/lib/verification";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
-const schema = z.object({
-  telegramId: z.string().min(1),
-});
+const schema = z.object({});
 
 /** Single Horizon check — use when user taps “Check now” instead of waiting for the stream. */
 export async function POST(request: NextRequest) {
   try {
-    const { telegramId } = schema.parse(await request.json());
+    const telegramId = readTelegramIdFromSession(request);
+    if (!telegramId) {
+      return NextResponse.json(
+        { success: false, verified: false, message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    schema.parse(await request.json());
     const result = await tryVerifyUserByPayment(telegramId);
 
     if (result.kind === "verified") {

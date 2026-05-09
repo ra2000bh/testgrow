@@ -57,14 +57,13 @@ export default function WalletPage() {
   const { lastCopiedId, copy: copyWithFeedback } = useCopyToClipboard();
 
   const loadUser = useCallback((): Promise<void> => {
-    const telegramId = getTelegramId();
-    if (!telegramId) {
-      setUser(null);
-      setLoading(false);
-      return Promise.resolve();
-    }
-    return fetch(`/api/user?telegramId=${encodeURIComponent(telegramId)}`)
+    return fetch("/api/user")
       .then((r) => {
+        if (r.status === 401) {
+          setUser(null);
+          setLoading(false);
+          return null;
+        }
         if (r.status === 404) {
           setUser(null);
           setLoading(false);
@@ -83,8 +82,19 @@ export default function WalletPage() {
   }, []);
 
   useEffect(() => {
-    const t = window.setTimeout(() => loadUser(), 0);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      await syncSessionCookie().catch(() => {
+        /* ignore */
+      });
+      if (!cancelled) {
+        void loadUser();
+      }
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, [loadUser]);
 
   useLayoutEffect(() => {
@@ -174,6 +184,7 @@ export default function WalletPage() {
       return;
     }
     initTelegramWebApp();
+    await syncSessionCookie();
     const telegramId = getTelegramId();
     if (!telegramId) {
       setError("Open this app from Telegram to continue.");
@@ -183,7 +194,7 @@ export default function WalletPage() {
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId, publicKey: trimmed }),
+      body: JSON.stringify({ publicKey: trimmed }),
     });
     const data = await res.json();
     setSubmitting(false);
@@ -208,6 +219,7 @@ export default function WalletPage() {
       return;
     }
     initTelegramWebApp();
+    await syncSessionCookie();
     const telegramId = getTelegramId();
     if (!telegramId) {
       setAccountError("Open this app from Telegram to continue.");
@@ -217,7 +229,7 @@ export default function WalletPage() {
     const res = await fetch("/api/account/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId }),
+      body: JSON.stringify({}),
     });
     setDeleteBusy(false);
     if (!res.ok) {
@@ -235,6 +247,7 @@ export default function WalletPage() {
     setCheckMessage("");
     setStreamError("");
     initTelegramWebApp();
+    await syncSessionCookie();
     const telegramId = getTelegramId();
     if (!telegramId) {
       setCheckMessage("Open this app from Telegram to continue.");
@@ -244,7 +257,7 @@ export default function WalletPage() {
     const res = await fetch("/api/verify/check", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId }),
+      body: JSON.stringify({}),
     });
     const data = (await res.json()) as {
       success?: boolean;

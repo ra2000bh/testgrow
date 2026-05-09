@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { tryVerifyUserByPayment } from "@/lib/verification";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +10,7 @@ function sleep(ms: number) {
 }
 
 export async function GET(request: NextRequest) {
-  const telegramId = request.cookies.get("stellargrow_telegram_id")?.value;
-  const decoded = telegramId ? decodeURIComponent(telegramId.trim()) : "";
+  const decoded = readTelegramIdFromSession(request) ?? "";
 
   if (!decoded) {
     return new Response(JSON.stringify({ error: "Missing session" }), {

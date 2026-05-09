@@ -4,16 +4,17 @@ import { User } from "@/models/User";
 import { companies } from "@/lib/companies";
 import { accountHasTrustline } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const TEN_MIN_MS = 10 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramId = request.nextUrl.searchParams.get("telegramId");
+    const telegramId = readTelegramIdFromSession(request);
     if (!telegramId) {
       return NextResponse.json(
-        { message: "telegramId is required." },
-        { status: 400, headers: CACHE_PRIVATE_NO_STORE },
+        { message: "Unauthorized." },
+        { status: 401, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
 

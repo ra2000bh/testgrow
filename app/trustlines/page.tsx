@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { companies } from "@/lib/companies";
-import { getTelegramId } from "@/lib/client";
 import { formatAddress } from "@/lib/stellar";
 import { AnimatedProgress } from "@/components/AnimatedProgress";
 import { Button } from "@/components/Button";
@@ -29,7 +28,7 @@ export default function TrustlinesPage() {
 
   const sync = useCallback(async () => {
     setError("");
-    const res = await fetch(`/api/check-trustlines?telegramId=${encodeURIComponent(getTelegramId())}`);
+    const res = await fetch("/api/check-trustlines");
     const data = await res.json();
     if (!res.ok) {
       setError(data.message || "Could not check trustlines.");

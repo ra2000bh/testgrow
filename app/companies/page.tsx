@@ -4,7 +4,6 @@ import gsap from "gsap";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { companies, companyBrandGradient } from "@/lib/companies";
 import { companyInitials } from "@/lib/company-display";
-import { getTelegramId } from "@/lib/client";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -33,7 +32,7 @@ export default function CompaniesPage() {
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const reload = () => {
-    fetch(`/api/user?telegramId=${encodeURIComponent(getTelegramId())}`)
+    fetch("/api/user")
       .then((r) => r.json())
       .then(setUser);
   };
@@ -111,7 +110,7 @@ export default function CompaniesPage() {
       const res = await fetch("/api/invest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramId: getTelegramId(), companyId: selectedCompany, amount }),
+        body: JSON.stringify({ companyId: selectedCompany, amount }),
       });
       let data: { success?: boolean; message?: string } = {};
       try {
@@ -143,7 +142,7 @@ export default function CompaniesPage() {
       const res = await fetch("/api/user/grow-balance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramId: getTelegramId() }),
+        body: JSON.stringify({}),
       });
       const data = (await res.json()) as { success?: boolean; growBalance?: number; message?: string };
       if (!res.ok || !data.success || typeof data.growBalance !== "number") {
@@ -175,7 +174,7 @@ export default function CompaniesPage() {
     const res = await fetch("/api/invest/withdraw", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telegramId: getTelegramId(), companyId }),
+      body: JSON.stringify({ companyId }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) return setError(data.message || "Could not remove stake.");
