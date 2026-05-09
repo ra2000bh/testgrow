@@ -2,8 +2,7 @@ import { companies } from "@/lib/companies";
 import type { Investment } from "@/models/User";
 
 // Production accrual interval: rewards are minted once every 24 hours.
-//export const REWARD_ACCRUAL_MS = 24 * 60 * 60 * 1000;
-export const REWARD_ACCRUAL_MS = 5 * 60 * 1000;
+export const REWARD_ACCRUAL_MS = 24 * 60 * 60 * 1000;
 
 /** @deprecated use REWARD_ACCRUAL_MS */
 export const DAY_MS = REWARD_ACCRUAL_MS;
@@ -71,4 +70,13 @@ export function computeBatchProgress(investment: Investment): {
 /** @deprecated use computePendingReward — kept for any external imports */
 export function computeUpdatedReward(investment: Investment): number {
   return computePendingReward(investment);
+}
+
+/** Compact ETA for UI (minutes under ~90m, otherwise whole hours). */
+export function formatRewardEta(ms: number): string {
+  if (ms <= 0) return "soon";
+  const minutes = Math.ceil(ms / 60_000);
+  if (minutes < 90) return `${minutes} min`;
+  const hours = Math.ceil(ms / 3_600_000);
+  return `${hours} hr`;
 }

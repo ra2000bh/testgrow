@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { companies } from "@/lib/companies";
-import { computeBatchProgress } from "@/lib/rewards";
+import { computeBatchProgress, formatRewardEta } from "@/lib/rewards";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import {
@@ -216,7 +216,7 @@ export default function RewardsPage() {
               </p>
               {meta.batchesReady === 0 && inv.rewardsEligible !== false ? (
                 <p className="sg-text-sm text-[var(--text-muted)]">
-                  Next claim window in ~{Math.ceil(meta.msUntilNextBatch / 60_000)} min.
+                  Next claim window in ~{formatRewardEta(meta.msUntilNextBatch)}.
                 </p>
               ) : null}
               {inv.rewardsEligible === false && inv.pausedReason ? (

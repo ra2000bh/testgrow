@@ -32,7 +32,7 @@ import {
 } from "@/lib/dashboard-portfolio";
 import { formatAddress } from "@/lib/stellar";
 import { getTelegramUser } from "@/lib/telegram";
-import { computeBatchProgress } from "@/lib/rewards";
+import { computeBatchProgress, formatRewardEta } from "@/lib/rewards";
 import type { PricePoint } from "@/lib/market-data";
 
 function greetingHour(h: number) {
@@ -278,10 +278,9 @@ export default function DashboardPage() {
 
     const msList = active.map((i) => computeBatchProgress(i).msUntilNextBatch);
     const ms = msList.length ? Math.min(...msList) : 0;
-    const nextMin = Math.ceil(ms / 60_000);
     const accrualLine =
       active.length > 0
-        ? `Next accrual window: ~${nextMin} min until the next reward batch boundary (estimate).`
+        ? `Next accrual window: ~${formatRewardEta(ms)} until the next reward batch boundary (estimate).`
         : "No active stakes - accruals start after you invest.";
 
     const driftLine =
