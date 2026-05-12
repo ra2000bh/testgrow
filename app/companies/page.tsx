@@ -9,6 +9,7 @@ import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { animateInvestSheet, animateListCards } from "@/lib/animations";
 import { fetchApiUserCloned } from "@/lib/fetch-api-user";
+import { getSnapshotCompaniesUser } from "@/lib/app-data-snapshot";
 import { MinusCircle, TrendingUp } from "lucide-react";
 
 type UserState = {
@@ -18,7 +19,7 @@ type UserState = {
 type WithdrawTarget = { companyId: string; companyName: string } | null;
 
 export default function CompaniesPage() {
-  const [user, setUser] = useState<UserState | null>(null);
+  const [user, setUser] = useState<UserState | null>(() => getSnapshotCompaniesUser());
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [amount, setAmount] = useState(0);
   const [amountInput, setAmountInput] = useState("0");

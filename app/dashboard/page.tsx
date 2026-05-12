@@ -15,7 +15,6 @@ import {
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { DashboardAllocationBar } from "@/components/dashboard/DashboardAllocationBar";
 import { DashboardInsights } from "@/components/dashboard/DashboardInsights";
-import type { EnrichedInvestment } from "@/components/dashboard/DashboardRewardsPanel";
 import { DashboardRewardsPanel } from "@/components/dashboard/DashboardRewardsPanel";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStrip";
@@ -34,6 +33,15 @@ import { formatAddress } from "@/lib/stellar";
 import { getTelegramUser } from "@/lib/telegram";
 import { computeBatchProgress, formatRewardEta } from "@/lib/rewards";
 import type { PricePoint } from "@/lib/market-data";
+import {
+  clearAppDataSnapshot,
+  getSnapshotMarket,
+  getSnapshotUser,
+  setSnapshotMarket,
+  setSnapshotUser,
+  type SnapshotMarketPayload as MarketPayload,
+  type SnapshotUserPayload as UserPayload,
+} from "@/lib/app-data-snapshot";
 import { fetchApiUserCloned } from "@/lib/fetch-api-user";
 
 const PortfolioChartPanel = dynamic(
@@ -55,20 +63,6 @@ function greetingHour(h: number) {
   return "Good evening";
 }
 
-type MarketPayload = {
-  tokens: { symbol: string; priceUsd: number; history: PricePoint[] }[];
-  generatedAt: string;
-};
-
-type UserPayload = {
-  publicKey: string;
-  growBalance: number;
-  totalInvested: number;
-  isVerified: boolean;
-  lastBalanceSyncAt: string | null;
-  investments: EnrichedInvestment[];
-};
-
 const MARKET_POLL_MS: Record<ChartRange, number> = {
   "1W": 3 * 60_000,
   "1M": 2 * 60_000,
@@ -85,9 +79,9 @@ function changePctFromHistory(history: PricePoint[]): number {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<UserPayload | null>(null);
-  const [market, setMarket] = useState<MarketPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserPayload | null>(() => getSnapshotUser());
+  const [market, setMarket] = useState<MarketPayload | null>(() => getSnapshotMarket());
+  const [loading, setLoading] = useState(() => getSnapshotUser() === null);
   const [clock, setClock] = useState(0);
   const [chartRange, setChartRange] = useState<ChartRange>("3M");
   const [chartAnimKey, setChartAnimKey] = useState(0);
@@ -132,12 +126,18 @@ export default function DashboardPage() {
     return userPromise
       .then((r) => {
         if (r.status === 401) {
+          clearAppDataSnapshot();
           setUser(null);
+          setMarket(null);
+          setLoading(true);
           router.replace("/wallet");
           return null;
         }
         if (r.status === 404) {
+          clearAppDataSnapshot();
           setUser(null);
+          setMarket(null);
+          setLoading(true);
           router.replace("/wallet");
           return null;
         }
@@ -145,7 +145,9 @@ export default function DashboardPage() {
       })
       .then((u) => {
         if (u) {
-          setUser(u as UserPayload);
+          const payload = u as UserPayload;
+          setUser(payload);
+          setSnapshotUser(payload);
         }
         setLoading(false);
       })
@@ -153,7 +155,11 @@ export default function DashboardPage() {
         fetch("/api/market-data")
           .then((r) => (r.ok ? r.json() : null))
           .then((m) => {
-            if (m) setMarket(m as MarketPayload);
+            if (m) {
+              const payload = m as MarketPayload;
+              setMarket(payload);
+              setSnapshotMarket(payload);
+            }
           })
           .catch(() => {
             /* keep prior market snapshot if refresh fails */
@@ -191,7 +197,11 @@ export default function DashboardPage() {
       fetch("/api/market-data")
         .then((r) => (r.ok ? r.json() : null))
         .then((m) => {
-          if (m) setMarket(m as MarketPayload);
+          if (m) {
+            const payload = m as MarketPayload;
+            setMarket(payload);
+            setSnapshotMarket(payload);
+          }
         })
         .catch(() => {
           /* ignore transient market refresh failures */

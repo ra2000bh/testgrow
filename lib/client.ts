@@ -1,6 +1,7 @@
 "use client";
 
 import { getTelegramUser } from "@/lib/telegram";
+import { clearAppDataSnapshot } from "@/lib/app-data-snapshot";
 
 export function getTelegramId() {
   const fromTelegram = getTelegramUser()?.id?.toString();
@@ -41,6 +42,7 @@ export function disconnectSession() {
   } catch {
     /* ignore */
   }
+  clearAppDataSnapshot();
   fetch("/api/session/init", { method: "DELETE" }).catch(() => {
     /* ignore */
   });

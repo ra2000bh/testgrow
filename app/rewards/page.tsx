@@ -13,6 +13,7 @@ import {
 } from "@/lib/animations";
 import Link from "next/link";
 import { Building2, Download } from "lucide-react";
+import { getSnapshotRewardInvestments } from "@/lib/app-data-snapshot";
 import { fetchApiUserCloned } from "@/lib/fetch-api-user";
 import type { Investment } from "@/models/User";
 
@@ -63,7 +64,7 @@ function RewardFigure({ value, trackId }: { value: number; trackId: string }) {
 }
 
 export default function RewardsPage() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<Row[]>(() => getSnapshotRewardInvestments() as Row[]);
   const [claiming, setClaiming] = useState<"all" | string | null>(null);
   const [toast, setToast] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [clock, setClock] = useState(0);

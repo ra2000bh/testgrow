@@ -12,6 +12,7 @@ import { Input } from "@/components/Input";
 import { LoadingPulse } from "@/components/LoadingPulse";
 import { getTelegramId, syncSessionCookie } from "@/lib/client";
 import { initTelegramWebApp } from "@/lib/telegram";
+import { clearAppDataSnapshot } from "@/lib/app-data-snapshot";
 import { formatAddress, isValidStellarPublicKey } from "@/lib/stellar";
 import { animateVerificationCelebration, prefersReducedMotion } from "@/lib/animations";
 import { useCopyToClipboard } from "@/lib/use-copy-to-clipboard";
@@ -23,6 +24,7 @@ const COPY_ID_CODE = "verification-code";
 const COPY_ID_LINKED = "linked-address";
 
 function dispatchSessionUpdate() {
+  clearAppDataSnapshot();
   syncSessionCookie();
   window.dispatchEvent(new Event(SESSION_UPDATE_EVENT));
 }
