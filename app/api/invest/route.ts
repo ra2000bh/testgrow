@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { getCompanyById } from "@/lib/companies";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
-import { getWalletGrowBalance } from "@/lib/stellar";
+import { getWalletGrowBalance, invalidateStellarAccountCache } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     await user.save();
+    invalidateStellarAccountCache(user.publicKey);
     return NextResponse.json(
       { success: true, updatedBalance: Math.max(0, chainGrowBalance - user.totalInvested) },
       { headers: CACHE_PRIVATE_NO_STORE },

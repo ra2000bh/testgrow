@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,7 +19,6 @@ import type { EnrichedInvestment } from "@/components/dashboard/DashboardRewards
 import { DashboardRewardsPanel } from "@/components/dashboard/DashboardRewardsPanel";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStrip";
-import { PortfolioChartPanel } from "@/components/dashboard/PortfolioChartPanel";
 import { companies, GROW_ASSET_CODE } from "@/lib/companies";
 import { GROW_TO_XLM_RATE, growBalanceToXlmDisplay } from "@/lib/grow-xlm";
 import { disconnectSession } from "@/lib/client";
@@ -34,6 +34,20 @@ import { formatAddress } from "@/lib/stellar";
 import { getTelegramUser } from "@/lib/telegram";
 import { computeBatchProgress, formatRewardEta } from "@/lib/rewards";
 import type { PricePoint } from "@/lib/market-data";
+import { fetchApiUserCloned } from "@/lib/fetch-api-user";
+
+const PortfolioChartPanel = dynamic(
+  () => import("@/components/dashboard/PortfolioChartPanel").then((m) => m.PortfolioChartPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="mt-3 h-[180px] w-full rounded-md border border-dashed border-[var(--dash-border)] bg-[rgba(8,12,18,0.4)]"
+        aria-hidden
+      />
+    ),
+  },
+);
 
 function greetingHour(h: number) {
   if (h < 12) return "Good morning";
@@ -111,9 +125,12 @@ export default function DashboardPage() {
     return "Something went wrong while sending rewards. Please contact support.";
   }, []);
 
-  const reload = useCallback(() => {
-    return Promise.all([
-      fetch("/api/user").then((r) => {
+  const reload = useCallback((opts?: { forceUser?: boolean }) => {
+    const forceUser = opts?.forceUser ?? true;
+    setLoadError("");
+    const userPromise = forceUser ? fetch("/api/user") : fetchApiUserCloned();
+    return userPromise
+      .then((r) => {
         if (r.status === 401) {
           setUser(null);
           router.replace("/wallet");
@@ -125,20 +142,32 @@ export default function DashboardPage() {
           return null;
         }
         return r.json();
-      }),
-      fetch("/api/market-data").then((r) => (r.ok ? r.json() : null)),
-    ]).then(([u, m]) => {
-      if (u) {
-        setUser(u as UserPayload);
-      }
-      if (m) setMarket(m as MarketPayload);
-      setLoading(false);
-    });
+      })
+      .then((u) => {
+        if (u) {
+          setUser(u as UserPayload);
+        }
+        setLoading(false);
+      })
+      .then(() =>
+        fetch("/api/market-data")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((m) => {
+            if (m) setMarket(m as MarketPayload);
+          })
+          .catch(() => {
+            /* keep prior market snapshot if refresh fails */
+          }),
+      )
+      .catch(() => {
+        setLoadError("Could not load dashboard.");
+        setLoading(false);
+      });
   }, [router]);
 
   useEffect(() => {
     setLoadError("");
-    reload().catch(() => {
+    reload({ forceUser: false }).catch(() => {
       setLoadError("Could not load dashboard.");
       setLoading(false);
     });
@@ -315,9 +344,9 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ claimAll: true }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showClaimNotice("error", toFriendlyClaimError((data as { message?: unknown }).message));
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; message?: unknown };
+      if (!res.ok || !data.success) {
+        showClaimNotice("error", toFriendlyClaimError(data.message));
         return;
       }
       showClaimNotice("success", "Rewards sent successfully to your wallet.");
@@ -335,9 +364,9 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyId }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showClaimNotice("error", toFriendlyClaimError((data as { message?: unknown }).message));
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; message?: unknown };
+      if (!res.ok || !data.success) {
+        showClaimNotice("error", toFriendlyClaimError(data.message));
         return;
       }
       showClaimNotice("success", "Reward sent successfully to your wallet.");
@@ -384,7 +413,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (loading || !user || !market) {
+  if (loading || !user) {
     return <DashboardSkeleton />;
   }
 
@@ -396,7 +425,7 @@ export default function DashboardPage() {
       data-page-child
     >
       {claimNotice ? (
-        <div className="pointer-events-none fixed left-1/2 top-3 z-40 w-[calc(100%-1rem)] max-w-[480px] -translate-x-1/2 px-1">
+        <div className="pointer-events-none fixed left-1/2 top-3 z-[100] w-[calc(100%-1rem)] max-w-[480px] -translate-x-1/2 px-1">
           <div
             className={`rounded-md border px-3 py-2 text-[12px] font-medium shadow-lg ${
               claimNotice.kind === "success"

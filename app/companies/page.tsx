@@ -8,6 +8,7 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { animateInvestSheet, animateListCards } from "@/lib/animations";
+import { fetchApiUserCloned } from "@/lib/fetch-api-user";
 import { MinusCircle, TrendingUp } from "lucide-react";
 
 type UserState = {
@@ -34,6 +35,12 @@ export default function CompaniesPage() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  const loadInitial = () => {
+    fetchApiUserCloned()
+      .then((r) => r.json())
+      .then(setUser);
+  };
+
   const reload = () => {
     fetch("/api/user")
       .then((r) => r.json())
@@ -41,7 +48,7 @@ export default function CompaniesPage() {
   };
 
   useEffect(() => {
-    reload();
+    loadInitial();
   }, []);
 
   useEffect(() => {
@@ -339,7 +346,7 @@ export default function CompaniesPage() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[51] flex justify-center">
         <div
           ref={sheetRef}
-          className="pointer-events-auto mb-[70px] w-full max-w-[480px] max-h-[calc(100vh-86px)] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
+          className="pointer-events-auto mb-[var(--sg-bottom-nav-height)] w-full max-w-[480px] max-h-[calc(100dvh-var(--sg-bottom-nav-height)-22px)] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--border)] border-b-0 bg-[var(--dash-surface)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
           role="dialog"
           aria-modal="true"
           aria-label="Invest"

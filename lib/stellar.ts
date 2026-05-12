@@ -12,8 +12,11 @@ import { GROW_ASSET_CODE } from "@/lib/companies";
 const HORIZON_URL = process.env.STELLAR_HORIZON_URL || "https://horizon.stellar.org";
 const server = new Horizon.Server(HORIZON_URL);
 const BALANCE_CACHE_TTL_MS = Math.max(0, Number(process.env.STELLAR_BALANCE_CACHE_TTL_MS ?? 30_000) || 30_000);
+/** Short TTL to coalesce burst reads (e.g. trustline checks) without stale invest paths when combined with invalidation on writes. */
+const ACCOUNT_CACHE_TTL_MS = Math.max(0, Number(process.env.STELLAR_ACCOUNT_CACHE_TTL_MS ?? 3_000) || 3_000);
 const MAX_RATE_LIMIT_RETRIES = 2;
 const balanceCache = new Map<string, { value: number; expiresAt: number }>();
+const accountCache = new Map<string, { value: Horizon.AccountResponse | null; expiresAt: number }>();
 
 /** Match Horizon: testnet vs public network. */
 export function getStellarNetworkPassphrase(): string {
@@ -62,7 +65,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function loadAccountWithRetry(publicKey: string) {
+async function loadAccountWithRetry(publicKey: string): Promise<Horizon.AccountResponse | null> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
     try {
       return await server.loadAccount(publicKey);
@@ -78,6 +81,82 @@ async function loadAccountWithRetry(publicKey: string) {
   return null;
 }
 
+/**
+ * One Horizon `accounts` read per wallet, cached briefly. Prefer this + pure helpers over N× `getIssuedAssetBalance`.
+ */
+export async function loadHorizonAccount(publicKey: string): Promise<Horizon.AccountResponse | null> {
+  const now = Date.now();
+  const cached = accountCache.get(publicKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+  const account = await loadAccountWithRetry(publicKey);
+  accountCache.set(publicKey, { value: account, expiresAt: now + ACCOUNT_CACHE_TTL_MS });
+  return account;
+}
+
+/** Drop cached account + GROW balance cache for this wallet (call after successful on-chain-affecting mutations). */
+export function invalidateStellarAccountCache(publicKey: string): void {
+  accountCache.delete(publicKey);
+  for (const k of [...balanceCache.keys()]) {
+    if (k.startsWith(`${publicKey}:`)) balanceCache.delete(k);
+  }
+}
+
+/** GROW trustline balance from an already-loaded account (same rules as getWalletGrowBalance). */
+export function growBalanceFromAccount(account: Horizon.AccountResponse | null): number | null {
+  const issuer = process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim();
+  if (!issuer) return null;
+  if (!account) return 0;
+  const row = account.balances.find((b) => {
+    if (b.asset_type === "native") return false;
+    if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
+    return b.asset_code === GROW_ASSET_CODE && b.asset_issuer === issuer;
+  });
+  const value = row && "balance" in row ? Number(row.balance) : 0;
+  if (!Number.isFinite(value)) return null;
+  return value;
+}
+
+/** Issued asset balance from an already-loaded account (same row match as getIssuedAssetBalance). */
+export function issuedAssetBalanceFromAccount(
+  account: Horizon.AccountResponse | null,
+  assetCode: string,
+  issuerPublicKey: string,
+): number {
+  if (!account) return 0;
+  const row = account.balances.find((b) => {
+    if (b.asset_type === "native") return false;
+    if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
+    return b.asset_code === assetCode && b.asset_issuer === issuerPublicKey;
+  });
+  if (!row || !("balance" in row)) return 0;
+  const n = Number(row.balance);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function accountHasTrustlineFromAccount(
+  account: Horizon.AccountResponse | null,
+  assetCode: string,
+  issuerPublicKey: string,
+): boolean {
+  if (!account) return false;
+  return account.balances.some((b) => {
+    if (b.asset_type === "native") return false;
+    if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
+    return b.asset_code === assetCode && b.asset_issuer === issuerPublicKey;
+  });
+}
+
+/** Keep numeric GROW cache in sync after a fresh account read (e.g. GET /api/user). */
+export function primeGrowBalanceCache(publicKey: string, balance: number): void {
+  const issuer = process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim();
+  if (!issuer) return;
+  const key = `${publicKey}:${GROW_ASSET_CODE}:${issuer}`;
+  const now = Date.now();
+  balanceCache.set(key, { value: balance, expiresAt: now + BALANCE_CACHE_TTL_MS });
+}
+
 export async function getWalletGrowBalance(publicKey: string): Promise<number | null> {
   const issuer = process.env.NEXT_PUBLIC_STELLAR_ISSUER_ADDRESS?.trim();
   if (!issuer) return null;
@@ -87,18 +166,8 @@ export async function getWalletGrowBalance(publicKey: string): Promise<number | 
   if (cached && cached.expiresAt > now) return cached.value;
 
   try {
-    const account = await loadAccountWithRetry(publicKey);
-    if (!account) {
-      balanceCache.set(key, { value: 0, expiresAt: now + BALANCE_CACHE_TTL_MS });
-      return 0;
-    }
-    const row = account.balances.find((b) => {
-      if (b.asset_type === "native") return false;
-      if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
-      return b.asset_code === GROW_ASSET_CODE && b.asset_issuer === issuer;
-    });
-    const value = row && "balance" in row ? Number(row.balance) : 0;
-    const balance = Number.isFinite(value) ? value : null;
+    const account = await loadHorizonAccount(publicKey);
+    const balance = growBalanceFromAccount(account);
     if (balance === null) return null;
     balanceCache.set(key, { value: balance, expiresAt: now + BALANCE_CACHE_TTL_MS });
     return balance;
@@ -113,16 +182,9 @@ export async function getIssuedAssetBalance(
   issuerPublicKey: string,
 ): Promise<number | null> {
   try {
-    const account = await loadAccountWithRetry(publicKey);
-    if (!account) return 0;
-    const row = account.balances.find((b) => {
-      if (b.asset_type === "native") return false;
-      if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
-      return b.asset_code === assetCode && b.asset_issuer === issuerPublicKey;
-    });
-    if (!row || !("balance" in row)) return 0;
-    const n = Number(row.balance);
-    return Number.isFinite(n) ? n : null;
+    const account = await loadHorizonAccount(publicKey);
+    const n = issuedAssetBalanceFromAccount(account, assetCode, issuerPublicKey);
+    return n;
   } catch (e: unknown) {
     const status = statusFromHorizonError(e);
     if (status === 404) return 0;
@@ -136,12 +198,8 @@ export async function accountHasTrustline(
   issuerPublicKey: string,
 ): Promise<boolean> {
   try {
-    const account = await server.loadAccount(publicKey);
-    return account.balances.some((b) => {
-      if (b.asset_type === "native") return false;
-      if (!("asset_code" in b) || !("asset_issuer" in b)) return false;
-      return b.asset_code === assetCode && b.asset_issuer === issuerPublicKey;
-    });
+    const account = await loadHorizonAccount(publicKey);
+    return accountHasTrustlineFromAccount(account, assetCode, issuerPublicKey);
   } catch {
     return false;
   }

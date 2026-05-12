@@ -22,7 +22,10 @@ export function animatePageEnter(
     );
   }
   tl.eventCallback("onComplete", () => {
-    gsap.set(root, { clearProps: "willChange" });
+    // Clear transform so `position: fixed` descendants (toasts, sheets) use the viewport,
+    // not this element as a containing block (CSS transforms spec).
+    gsap.set(root, { clearProps: "transform,willChange" });
+    gsap.set(root, { opacity: 1 });
   });
   return tl;
 }

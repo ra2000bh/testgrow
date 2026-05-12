@@ -4,7 +4,12 @@ import { User } from "@/models/User";
 import { computePendingReward, computeRewardRatePerMinute } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
-import { getIssuedAssetBalance, getWalletGrowBalance } from "@/lib/stellar";
+import {
+  growBalanceFromAccount,
+  issuedAssetBalanceFromAccount,
+  loadHorizonAccount,
+  primeGrowBalanceCache,
+} from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 export async function GET(request: NextRequest) {
@@ -27,14 +32,24 @@ export async function GET(request: NextRequest) {
 
     const totalInvested = Number(user.totalInvested) || 0;
     let chainGrowBalance: number | null = null;
+    let horizonAccount: Awaited<ReturnType<typeof loadHorizonAccount>> | undefined;
     if (user.isVerified) {
-      chainGrowBalance = await getWalletGrowBalance(user.publicKey);
+      try {
+        horizonAccount = await loadHorizonAccount(user.publicKey);
+      } catch {
+        return NextResponse.json(
+          { message: "Could not read GROW balance from Stellar Horizon." },
+          { status: 502, headers: CACHE_PRIVATE_NO_STORE },
+        );
+      }
+      chainGrowBalance = growBalanceFromAccount(horizonAccount);
       if (chainGrowBalance === null) {
         return NextResponse.json(
           { message: "Could not read GROW balance from Stellar Horizon." },
           { status: 502, headers: CACHE_PRIVATE_NO_STORE },
         );
       }
+      primeGrowBalanceCache(user.publicKey, chainGrowBalance);
     }
     const effectiveChainBalance = chainGrowBalance ?? (Number(user.growBalance) || 0);
     const investableGrowBalance = Math.max(0, effectiveChainBalance - totalInvested);
@@ -49,13 +64,11 @@ export async function GET(request: NextRequest) {
         assetsToFetch.set(key, { assetCode: investment.assetCode, issuer: investment.issuer });
       }
     }
-    if (user.isVerified && assetsToFetch.size > 0) {
-      await Promise.all(
-        [...assetsToFetch.entries()].map(async ([key, asset]) => {
-          const n = await getIssuedAssetBalance(user.publicKey, asset.assetCode, asset.issuer);
-          walletAssetBalances.set(key, typeof n === "number" && Number.isFinite(n) ? Math.max(0, n) : 0);
-        }),
-      );
+    if (user.isVerified && assetsToFetch.size > 0 && horizonAccount !== undefined) {
+      for (const [key, asset] of assetsToFetch.entries()) {
+        const n = issuedAssetBalanceFromAccount(horizonAccount, asset.assetCode, asset.issuer);
+        walletAssetBalances.set(key, Math.max(0, n));
+      }
     }
     if (!rewardsEligible) {
       const now = new Date();

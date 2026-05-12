@@ -60,6 +60,9 @@
 
   --focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.22);
   --overlay-scrim: rgba(2, 6, 12, 0.72);
+
+  /* Matches .sg-bottom-nav height — use for fixed sheets so they sit flush above the nav */
+  --sg-bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
 }
 
 @theme inline {
@@ -156,7 +159,7 @@ body {
   isolation: isolate;
   min-height: 100dvh;
   background: var(--background-primary);
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--sg-bottom-nav-height);
 }
 
 .sg-app-shell::before {
@@ -239,7 +242,7 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  height: var(--sg-bottom-nav-height);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: rgba(3, 5, 9, 0.94);
   border-top: 1px solid var(--border);

@@ -4,9 +4,15 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { computePendingReward } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
-import { accountHasTrustline, sendBatchAssetPayments, toStellarAmount } from "@/lib/stellar";
+import {
+  accountHasTrustlineFromAccount,
+  growBalanceFromAccount,
+  invalidateStellarAccountCache,
+  loadHorizonAccount,
+  sendBatchAssetPayments,
+  toStellarAmount,
+} from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
-import { getWalletGrowBalance } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
@@ -56,7 +62,16 @@ export async function POST(request: NextRequest) {
         { status: 403, headers: CACHE_PRIVATE_NO_STORE },
       );
     }
-    const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
+    let horizonAccount;
+    try {
+      horizonAccount = await loadHorizonAccount(user.publicKey);
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Could not read GROW balance from Stellar Horizon." },
+        { status: 502, headers: CACHE_PRIVATE_NO_STORE },
+      );
+    }
+    const chainGrowBalance = growBalanceFromAccount(horizonAccount);
     if (chainGrowBalance === null) {
       return NextResponse.json(
         { success: false, message: "Could not read GROW balance from Stellar Horizon." },
@@ -90,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const { inv } of payouts) {
-      const hasLine = await accountHasTrustline(user.publicKey, inv.assetCode, inv.issuer);
+      const hasLine = accountHasTrustlineFromAccount(horizonAccount, inv.assetCode, inv.issuer);
       if (!hasLine) {
         return NextResponse.json(
           {
@@ -140,6 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     await user.save();
+    invalidateStellarAccountCache(user.publicKey);
     return NextResponse.json({ success: true }, { headers: CACHE_PRIVATE_NO_STORE });
   } catch {
     return NextResponse.json(

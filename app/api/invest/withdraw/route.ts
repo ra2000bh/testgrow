@@ -5,7 +5,7 @@ import { User } from "@/models/User";
 import { computePendingReward } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
-import { getWalletGrowBalance } from "@/lib/stellar";
+import { getWalletGrowBalance, invalidateStellarAccountCache } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 
 const schema = z.object({
@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     investments.splice(idx, 1);
 
     await user.save();
+    invalidateStellarAccountCache(user.publicKey);
     const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
     const updatedBalance =
       chainGrowBalance === null ? null : Math.max(0, chainGrowBalance - (Number(user.totalInvested) || 0));

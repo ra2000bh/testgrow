@@ -13,6 +13,7 @@ import {
 } from "@/lib/animations";
 import Link from "next/link";
 import { Building2, Download } from "lucide-react";
+import { fetchApiUserCloned } from "@/lib/fetch-api-user";
 import type { Investment } from "@/models/User";
 
 type Row = Investment & {
@@ -93,8 +94,9 @@ export default function RewardsPage() {
     return "Something went wrong while sending rewards. Please contact support.";
   };
 
-  const load = () => {
-    fetch("/api/user")
+  const load = (opts?: { force?: boolean }) => {
+    const p = opts?.force ? fetch("/api/user") : fetchApiUserCloned();
+    return p
       .then((r) => r.json())
       .then((data) => {
         const inv = (data.investments || []) as Row[];
@@ -146,7 +148,7 @@ export default function RewardsPage() {
         return;
       }
       showToast("success", companyId ? "Reward sent to your wallet." : "All available rewards were sent.");
-      load();
+      load({ force: true });
     } catch {
       setClaiming(null);
       showToast("error", "Network error while claiming rewards.");

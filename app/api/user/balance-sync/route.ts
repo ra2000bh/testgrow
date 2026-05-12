@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
-import { getWalletGrowBalance } from "@/lib/stellar";
+import { getWalletGrowBalance, invalidateStellarAccountCache } from "@/lib/stellar";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    invalidateStellarAccountCache(user.publicKey);
     const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
     if (chainGrowBalance === null) {
       return NextResponse.json(

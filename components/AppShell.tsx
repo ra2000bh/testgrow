@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { syncSessionCookie } from "@/lib/client";
+import { fetchApiUserCloned, resetApiUserFetchDedupe } from "@/lib/fetch-api-user";
 import { initTelegramWebApp, setupTelegramBackButton } from "@/lib/telegram";
 import { BottomNav } from "@/components/BottomNav";
 import { PageWrapper } from "@/components/PageWrapper";
@@ -27,8 +28,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    const run = () => {
-      fetch("/api/user")
+    const run = (forceFresh = false) => {
+      if (forceFresh) resetApiUserFetchDedupe();
+      fetchApiUserCloned()
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (!cancelled) setVerified(Boolean(data?.isVerified));
@@ -37,8 +39,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           if (!cancelled) setVerified(false);
         });
     };
-    const t = window.setTimeout(run, 0);
-    const onSession = () => run();
+    const t = window.setTimeout(() => run(false), 0);
+    const onSession = () => run(true);
     window.addEventListener("stellargrow:session-update", onSession);
     return () => {
       cancelled = true;
