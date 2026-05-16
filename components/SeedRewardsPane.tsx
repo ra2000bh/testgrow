@@ -84,7 +84,7 @@ function SeedPaneContent({
           <span className={compact ? "dash-tabular font-semibold" : "sg-tabular font-semibold"}>
             {balanceLabel}
           </span>{" "}
-          {SEED_ASSET_CODE} —{" "}
+          {SEED_ASSET_CODE} -{" "}
           <span
             className={
               compact ? "font-semibold text-[var(--dash-teal)]" : "font-semibold text-[var(--primary-green)]"
