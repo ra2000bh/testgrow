@@ -11,6 +11,8 @@ import {
   primeGrowBalanceCache,
 } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
+import { SEED_ASSET_CODE } from "@/lib/companies";
+import { getSeedIssuer, seedBonusPercent, seedRewardMultiplier } from "@/lib/seed";
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,6 +57,12 @@ export async function GET(request: NextRequest) {
     const investableGrowBalance = Math.max(0, effectiveChainBalance - totalInvested);
     const rewardsEligible = effectiveChainBalance + 1e-7 >= totalInvested;
 
+    let seedBalance = 0;
+    if (user.isVerified && horizonAccount !== undefined) {
+      const seedIssuer = getSeedIssuer();
+      seedBalance = Math.max(0, issuedAssetBalanceFromAccount(horizonAccount, SEED_ASSET_CODE, seedIssuer));
+    }
+
     const userInvestments = user.investments as Investment[];
     const walletAssetBalances = new Map<string, number>();
     const assetsToFetch = new Map<string, { assetCode: string; issuer: string }>();
@@ -85,8 +93,8 @@ export async function GET(request: NextRequest) {
       const pausedReason = rewardsEligible ? null : "Tokens were transferred out - rewards paused";
       return {
         ...baseInvestment,
-        accumulatedReward: rewardsEligible ? computePendingReward(investment) : 0,
-        ratePerMinute: rewardsEligible ? computeRewardRatePerMinute(investment) : 0,
+        accumulatedReward: rewardsEligible ? computePendingReward(investment, seedBalance) : 0,
+        ratePerMinute: rewardsEligible ? computeRewardRatePerMinute(investment, seedBalance) : 0,
         walletAssetBalance: walletAssetBalances.get(`${investment.assetCode}:${investment.issuer}`) ?? 0,
         rewardsEligible,
         pausedReason,
@@ -108,6 +116,9 @@ export async function GET(request: NextRequest) {
           ? new Date(u.lastBalanceSyncAt).toISOString()
           : null,
         investments: enrichedInvestments,
+        seedBalance,
+        seedBonusPercent: seedBonusPercent(seedBalance),
+        seedRewardMultiplier: seedRewardMultiplier(seedBalance),
       },
       { headers: CACHE_PRIVATE_NO_STORE },
     );

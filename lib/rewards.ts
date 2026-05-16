@@ -1,4 +1,5 @@
 import { companies } from "@/lib/companies";
+import { seedRewardMultiplier } from "@/lib/seed";
 import type { Investment } from "@/models/User";
 
 /** Production accrual interval: one reward batch every 24 hours. */
@@ -13,27 +14,31 @@ export function computeBatchesReady(investment: Investment): number {
   return Math.max(0, Math.floor((Date.now() - last) / REWARD_ACCRUAL_MS));
 }
 
-export function computeRewardPerBatch(investment: Investment): number {
+export function computeRewardPerBatch(investment: Investment, seedBalance = 0): number {
   const company = companies.find((c) => c.id === investment.companyId);
   if (!company) return 0;
-  return investment.tokensInvested * company.dailyRate;
+  const base = investment.tokensInvested * company.dailyRate;
+  return base * seedRewardMultiplier(seedBalance);
 }
 
 /** Reward tokens accrued per minute (continuous UI projection between batch boundaries). */
-export function computeRewardRatePerMinute(investment: Investment): number {
+export function computeRewardRatePerMinute(investment: Investment, seedBalance = 0): number {
   if (investment.tokensInvested <= 0) return 0;
-  const perBatch = computeRewardPerBatch(investment);
+  const perBatch = computeRewardPerBatch(investment, seedBalance);
   const minutesPerBatch = REWARD_ACCRUAL_MS / 60_000;
   if (minutesPerBatch <= 0) return 0;
   return perBatch / minutesPerBatch;
 }
 
 /** Total claimable from stacked accrual batches (no cap). */
-export function computePendingReward(investment: Investment): number {
-  return computeBatchesReady(investment) * computeRewardPerBatch(investment);
+export function computePendingReward(investment: Investment, seedBalance = 0): number {
+  return computeBatchesReady(investment) * computeRewardPerBatch(investment, seedBalance);
 }
 
-export function computeBatchProgress(investment: Investment): {
+export function computeBatchProgress(
+  investment: Investment,
+  seedBalance = 0,
+): {
   batchesReady: number;
   rewardPerBatch: number;
   totalPending: number;
@@ -53,7 +58,7 @@ export function computeBatchProgress(investment: Investment): {
   const last = new Date(investment.lastRewardAt).getTime();
   const elapsed = Math.max(0, Date.now() - last);
   const batchesReady = Math.floor(elapsed / REWARD_ACCRUAL_MS);
-  const rewardPerBatch = investment.tokensInvested * company.dailyRate;
+  const rewardPerBatch = investment.tokensInvested * company.dailyRate * seedRewardMultiplier(seedBalance);
   const totalPending = batchesReady * rewardPerBatch;
   const msIntoCurrent = elapsed % REWARD_ACCRUAL_MS;
   const progressToNextPercent = batchesReady > 0 ? 100 : (msIntoCurrent / REWARD_ACCRUAL_MS) * 100;
@@ -68,8 +73,8 @@ export function computeBatchProgress(investment: Investment): {
 }
 
 /** @deprecated use computePendingReward — kept for any external imports */
-export function computeUpdatedReward(investment: Investment): number {
-  return computePendingReward(investment);
+export function computeUpdatedReward(investment: Investment, seedBalance = 0): number {
+  return computePendingReward(investment, seedBalance);
 }
 
 /** Compact ETA for UI (minutes under ~90m, otherwise whole hours). */

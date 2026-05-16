@@ -17,6 +17,8 @@ export type SnapshotUserPayload = {
   isVerified: boolean;
   lastBalanceSyncAt: string | null;
   investments: EnrichedInvestment[];
+  seedBalance?: number;
+  seedBonusPercent?: number;
 };
 
 let lastUser: SnapshotUserPayload | null = null;

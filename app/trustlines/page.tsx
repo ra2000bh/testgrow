@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { companies } from "@/lib/companies";
+import { companies, SEED_ASSET_CODE, SEED_TRUSTLINE_ID } from "@/lib/companies";
+import { getSeedIssuer } from "@/lib/seed";
 import { formatAddress } from "@/lib/stellar";
 import { AnimatedProgress } from "@/components/AnimatedProgress";
 import { Button } from "@/components/Button";
@@ -66,6 +67,11 @@ export default function TrustlinesPage() {
 
   const progressPct = (activeCount / companies.length) * 100;
 
+  const seedIssuer = getSeedIssuer();
+  const seedRow = trustlines.find((t) => t.companyId === SEED_TRUSTLINE_ID);
+  const seedTrustlineActive = Boolean(seedRow?.confirmed);
+  const seedLobstr = `https://lobstr.co/assets/${SEED_ASSET_CODE}:${seedIssuer}`;
+
   useLayoutEffect(() => {
     if (loading) return;
     requestAnimationFrame(() => animateListCards(listRef.current));
@@ -96,6 +102,46 @@ export default function TrustlinesPage() {
       {refreshing ? <LoadingPulse label="Rechecking trustlines…" /> : null}
 
       {error ? <ErrorCard text={error} onRetry={() => sync()} /> : null}
+
+      <Card className="space-y-3 border-[var(--border)]" data-page-child>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">Bonus token</h2>
+          <span className="sg-chip">{SEED_ASSET_CODE}</span>
+        </div>
+        <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
+          Bonus token — hold {SEED_ASSET_CODE} in your wallet for +1% reward boost per token on all company rewards.
+        </p>
+        <p className="sg-mono sg-text-xs break-all text-[var(--text-muted)]">Issuer · {seedIssuer}</p>
+        <div className="flex items-center gap-2">
+          {seedTrustlineActive ? (
+            <>
+              <ShieldCheck size={14} className="text-[var(--success)]" aria-hidden />
+              <span className="sg-text-sm font-medium text-[var(--success)]">Trustline active</span>
+            </>
+          ) : (
+            <>
+              <Link2 size={14} className="text-[var(--text-muted)]" aria-hidden />
+              <span className="sg-text-sm font-medium text-[var(--text-muted)]">Not added yet</span>
+            </>
+          )}
+        </div>
+        {!seedTrustlineActive ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={() => window.open(seedLobstr, "_blank", "noopener,noreferrer")}
+            >
+              <Link2 size={16} aria-hidden />
+              <span>Open in Lobstr</span>
+            </Button>
+            <p className="sg-text-xs text-[var(--text-muted)] sm:self-center">
+              On testnet, add {SEED_ASSET_CODE} manually in Solar / laboratory with this code and issuer.
+            </p>
+          </div>
+        ) : null}
+      </Card>
 
       <div ref={listRef} className="space-y-3">
         {companies.map((company) => {

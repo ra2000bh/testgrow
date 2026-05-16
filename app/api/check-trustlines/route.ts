@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import { companies } from "@/lib/companies";
+import { companies, SEED_TRUSTLINE_ID } from "@/lib/companies";
+import { SEED_ASSET_CODE } from "@/lib/companies";
+import { getSeedIssuer } from "@/lib/seed";
 import { accountHasTrustline } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
@@ -51,6 +53,24 @@ export async function GET(request: NextRequest) {
             lastCheckedAt: new Date(),
           });
         }
+      }
+    }
+
+    const seedIssuer = getSeedIssuer();
+    const seedRow = user.trustlines.find((t: { companyId: string }) => t.companyId === SEED_TRUSTLINE_ID);
+    const seedLast = seedRow?.lastCheckedAt ? new Date(seedRow.lastCheckedAt).getTime() : 0;
+    const seedStale = !seedLast || now - seedLast > TEN_MIN_MS;
+    if (seedStale) {
+      const hasSeed = await accountHasTrustline(user.publicKey, SEED_ASSET_CODE, seedIssuer);
+      if (seedRow) {
+        seedRow.confirmed = hasSeed;
+        seedRow.lastCheckedAt = new Date();
+      } else {
+        user.trustlines.push({
+          companyId: SEED_TRUSTLINE_ID,
+          confirmed: hasSeed,
+          lastCheckedAt: new Date(),
+        });
       }
     }
 

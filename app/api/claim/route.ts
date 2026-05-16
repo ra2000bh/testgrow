@@ -7,6 +7,7 @@ import type { Investment } from "@/models/User";
 import {
   accountHasTrustlineFromAccount,
   growBalanceFromAccount,
+  issuedAssetBalanceFromAccount,
   invalidateStellarAccountCache,
   loadHorizonAccount,
   sendBatchAssetPayments,
@@ -14,6 +15,8 @@ import {
 } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
+import { SEED_ASSET_CODE } from "@/lib/companies";
+import { getSeedIssuer } from "@/lib/seed";
 
 const schema = z.object({
   companyId: z.string().min(1).optional(),
@@ -86,6 +89,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const seedIssuer = getSeedIssuer();
+    const seedBalance = Math.max(
+      0,
+      issuedAssetBalanceFromAccount(horizonAccount, SEED_ASSET_CODE, seedIssuer),
+    );
+
     const investments = user.investments as Investment[];
     const list = investments.filter((inv) =>
       body.claimAll ? true : inv.companyId === body.companyId,
@@ -93,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     const payouts: { inv: Investment; pending: number }[] = [];
     for (const inv of list) {
-      const pending = computePendingReward(inv);
+      const pending = computePendingReward(inv, seedBalance);
       if (pending > 0) payouts.push({ inv, pending });
     }
 

@@ -24,6 +24,7 @@ function initials(name: string) {
 export function DashboardRewardsPanel({
   investments,
   pendingByCompanyId,
+  seedBalance = 0,
   claimingId,
   onClaimOne,
   onClaimAll,
@@ -31,6 +32,7 @@ export function DashboardRewardsPanel({
 }: {
   investments: EnrichedInvestment[];
   pendingByCompanyId: Record<string, number>;
+  seedBalance?: number;
   claimingId: string | null;
   onClaimOne: (companyId: string) => void;
   onClaimAll: () => void;
@@ -73,7 +75,7 @@ export function DashboardRewardsPanel({
         {active.map((inv) => {
           const pending = pendingByCompanyId[inv.companyId] ?? 0;
           const eligible = inv.rewardsEligible !== false;
-          const perBatch = computeRewardPerBatch(inv);
+          const perBatch = computeRewardPerBatch(inv, seedBalance);
           const pulse = pending > perBatch * 0.25;
           const co = getCompanyById(inv.companyId);
           const grad = co ? companyBrandGradient(co) : "linear-gradient(135deg,#475569,#1e293b)";

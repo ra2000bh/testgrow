@@ -18,6 +18,12 @@ export type CompanyConfig = {
 /** App balance / allocation currency (not the same as per-company portfolio tokens). */
 export const GROW_ASSET_CODE = "GROW";
 
+/** Bonus asset: +1% reward multiplier per token held (same issuer as portfolio tokens). */
+export const SEED_ASSET_CODE = "SEED";
+
+/** Synthetic id stored in user.trustlines for the SEED bonus trustline row. */
+export const SEED_TRUSTLINE_ID = "seed-bonus";
+
 export const GROW_BRAND = {
   from: "#34d399",
   to: "#047857",

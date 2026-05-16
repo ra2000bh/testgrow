@@ -16,6 +16,7 @@ import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { DashboardAllocationBar } from "@/components/dashboard/DashboardAllocationBar";
 import { DashboardInsights } from "@/components/dashboard/DashboardInsights";
 import { DashboardRewardsPanel } from "@/components/dashboard/DashboardRewardsPanel";
+import { SeedRewardsPane } from "@/components/SeedRewardsPane";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStrip";
 import { companies, GROW_ASSET_CODE } from "@/lib/companies";
@@ -223,16 +224,19 @@ export default function DashboardPage() {
     return h;
   }, [market]);
 
+  const seedBalance = user?.seedBalance ?? 0;
+  const seedBonusPercent = user?.seedBonusPercent ?? seedBalance;
+
   const pendingByCompanyId = useMemo(() => {
     void clock;
     if (!user) return {};
     const map: Record<string, number> = {};
     for (const inv of user.investments) {
-      const computed = computeBatchProgress(inv).totalPending;
+      const computed = computeBatchProgress(inv, seedBalance).totalPending;
       map[inv.companyId] = Math.max(0, Math.max(inv.accumulatedReward, computed));
     }
     return map;
-  }, [user, clock]);
+  }, [user, clock, seedBalance]);
 
   const pricesBySymbol = useMemo(() => {
     if (!market?.tokens) return {} as Record<string, number>;
@@ -561,9 +565,16 @@ export default function DashboardPage() {
           </section>
         </div>
 
+        <SeedRewardsPane
+          seedBalance={seedBalance}
+          seedBonusPercent={seedBonusPercent}
+          variant="dashboard"
+        />
+
         <DashboardRewardsPanel
           investments={user.investments}
           pendingByCompanyId={pendingByCompanyId}
+          seedBalance={seedBalance}
           claimingId={claimingId}
           onClaimOne={onClaimOne}
           onClaimAll={onClaimAll}

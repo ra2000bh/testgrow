@@ -13,8 +13,9 @@ import {
 } from "@/lib/animations";
 import Link from "next/link";
 import { Building2, Download } from "lucide-react";
-import { getSnapshotRewardInvestments } from "@/lib/app-data-snapshot";
+import { getSnapshotRewardInvestments, getSnapshotUser } from "@/lib/app-data-snapshot";
 import { fetchApiUserCloned } from "@/lib/fetch-api-user";
+import { SeedRewardsPane } from "@/components/SeedRewardsPane";
 import type { Investment } from "@/models/User";
 
 type Row = Investment & {
@@ -65,6 +66,11 @@ function RewardFigure({ value, trackId }: { value: number; trackId: string }) {
 
 export default function RewardsPage() {
   const [rows, setRows] = useState<Row[]>(() => getSnapshotRewardInvestments() as Row[]);
+  const snapSeed = getSnapshotUser();
+  const [seedBalance, setSeedBalance] = useState(snapSeed?.seedBalance ?? 0);
+  const [seedBonusPercent, setSeedBonusPercent] = useState(
+    snapSeed?.seedBonusPercent ?? snapSeed?.seedBalance ?? 0,
+  );
   const [claiming, setClaiming] = useState<"all" | string | null>(null);
   const [toast, setToast] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [clock, setClock] = useState(0);
@@ -102,6 +108,8 @@ export default function RewardsPage() {
       .then((data) => {
         const inv = (data.investments || []) as Row[];
         setRows(inv.filter((i) => i.tokensInvested > 0));
+        setSeedBalance(Number(data.seedBalance) || 0);
+        setSeedBonusPercent(Number(data.seedBonusPercent ?? data.seedBalance) || 0);
       });
   };
 
@@ -127,7 +135,7 @@ export default function RewardsPage() {
   const pendingForRow = (r: Row) => {
     void clock;
     if (r.rewardsEligible === false) return 0;
-    const computed = computeBatchProgress(r).totalPending;
+    const computed = computeBatchProgress(r, seedBalance).totalPending;
     return Math.max(0, Math.max(r.accumulatedReward, computed));
   };
 
@@ -198,7 +206,7 @@ export default function RewardsPage() {
       <div ref={listRef} className="space-y-3">
         {rows.map((inv) => {
           const company = companies.find((c) => c.id === inv.companyId);
-          const meta = computeBatchProgress(inv);
+          const meta = computeBatchProgress(inv, seedBalance);
           const pending = pendingForRow(inv);
           const canClaim = pending > 0 && inv.rewardsEligible !== false && meta.batchesReady > 0;
           const busy = claiming === inv.companyId;
@@ -248,6 +256,14 @@ export default function RewardsPage() {
         })}
       </div>
 
+      {rows.length > 0 ? (
+        <SeedRewardsPane
+          seedBalance={seedBalance}
+          seedBonusPercent={seedBonusPercent}
+          variant="rewards"
+        />
+      ) : null}
+
       <div
         className={`pointer-events-none fixed left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 px-4 transition-transform duration-300 ease-out ${
           totalPending > 0 ? "translate-y-0" : "translate-y-[140%]"
@@ -260,7 +276,11 @@ export default function RewardsPage() {
           <Button
             variant="primary"
             block
-            disabled={totalPending <= 0 || rows.every((r) => computeBatchProgress(r).batchesReady === 0) || Boolean(claiming)}
+            disabled={
+              totalPending <= 0 ||
+              rows.every((r) => computeBatchProgress(r, seedBalance).batchesReady === 0) ||
+              Boolean(claiming)
+            }
             onClick={() => claim()}
           >
             {claiming === "all" ? (

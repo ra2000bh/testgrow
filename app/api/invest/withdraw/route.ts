@@ -5,8 +5,15 @@ import { User } from "@/models/User";
 import { computePendingReward } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
-import { getWalletGrowBalance, invalidateStellarAccountCache } from "@/lib/stellar";
+import {
+  getWalletGrowBalance,
+  invalidateStellarAccountCache,
+  issuedAssetBalanceFromAccount,
+  loadHorizonAccount,
+} from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
+import { SEED_ASSET_CODE } from "@/lib/companies";
+import { getSeedIssuer } from "@/lib/seed";
 
 const schema = z.object({
   companyId: z.string().min(1),
@@ -54,7 +61,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pending = computePendingReward(inv);
+    let seedBalance = 0;
+    try {
+      const horizonAccount = await loadHorizonAccount(user.publicKey);
+      seedBalance = Math.max(
+        0,
+        issuedAssetBalanceFromAccount(horizonAccount, SEED_ASSET_CODE, getSeedIssuer()),
+      );
+    } catch {
+      /* use 0 SEED if Horizon unavailable */
+    }
+    const pending = computePendingReward(inv, seedBalance);
     const principal = inv.tokensInvested;
     user.totalInvested = Math.max(0, user.totalInvested - principal);
     investments.splice(idx, 1);
