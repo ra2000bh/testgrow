@@ -35,6 +35,18 @@ export function computePendingReward(investment: Investment, seedBalance = 0): n
   return computeBatchesReady(investment) * computeRewardPerBatch(investment, seedBalance);
 }
 
+/**
+ * After claiming N batches, advance the accrual anchor by N periods (not "now"),
+ * so partial progress toward the next batch is preserved.
+ */
+export function lastRewardAtAfterClaim(investment: Investment, batchesClaimed: number): Date {
+  const lastMs = new Date(investment.lastRewardAt).getTime();
+  if (!Number.isFinite(lastMs) || batchesClaimed <= 0) {
+    return new Date();
+  }
+  return new Date(lastMs + batchesClaimed * REWARD_ACCRUAL_MS);
+}
+
 export function computeBatchProgress(
   investment: Investment,
   seedBalance = 0,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
 import { User } from "@/models/User";
-import { computePendingReward } from "@/lib/rewards";
+import { computeBatchesReady, computePendingReward, lastRewardAtAfterClaim } from "@/lib/rewards";
 import type { Investment } from "@/models/User";
 import {
   accountHasTrustlineFromAccount,
@@ -100,10 +100,11 @@ export async function POST(request: NextRequest) {
       body.claimAll ? true : inv.companyId === body.companyId,
     );
 
-    const payouts: { inv: Investment; pending: number }[] = [];
+    const payouts: { inv: Investment; pending: number; batchesClaimed: number }[] = [];
     for (const inv of list) {
+      const batchesClaimed = computeBatchesReady(inv);
       const pending = computePendingReward(inv, seedBalance);
-      if (pending > 0) payouts.push({ inv, pending });
+      if (pending > 0) payouts.push({ inv, pending, batchesClaimed });
     }
 
     if (payouts.length === 0) {
@@ -158,8 +159,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    for (const { inv } of payouts) {
-      inv.lastRewardAt = new Date();
+    for (const { inv, batchesClaimed } of payouts) {
+      inv.lastRewardAt = lastRewardAtAfterClaim(inv, batchesClaimed);
       inv.accumulatedReward = 0;
     }
 
