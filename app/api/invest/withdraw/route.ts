@@ -13,6 +13,7 @@ import {
 } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 import { SEED_ASSET_CODE } from "@/lib/companies";
+import { resolveLeaderboardRank, updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getSeedIssuer } from "@/lib/seed";
 
 const schema = z.object({
@@ -71,14 +72,18 @@ export async function POST(request: NextRequest) {
     } catch {
       /* use 0 SEED if Horizon unavailable */
     }
-    const pending = computePendingReward(inv, seedBalance);
+    const { rank: leaderboardRank } = await resolveLeaderboardRank(telegramId);
+    const pending = computePendingReward(inv, seedBalance, leaderboardRank);
     const principal = inv.tokensInvested;
     user.totalInvested = Math.max(0, user.totalInvested - principal);
     investments.splice(idx, 1);
 
-    await user.save();
     invalidateStellarAccountCache(user.publicKey);
     const chainGrowBalance = await getWalletGrowBalance(user.publicKey);
+    if (chainGrowBalance !== null) {
+      await updateUserChainGrowBalance(user, chainGrowBalance);
+    }
+    await user.save();
     const updatedBalance =
       chainGrowBalance === null ? null : Math.max(0, chainGrowBalance - (Number(user.totalInvested) || 0));
     return NextResponse.json(

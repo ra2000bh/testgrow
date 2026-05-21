@@ -1,6 +1,6 @@
 "use client";
 
-type TelegramUser = { id?: number; username?: string; first_name?: string };
+type TelegramUser = { id?: number; username?: string; first_name?: string; photo_url?: string };
 
 type TelegramWebApp = {
   ready: () => void;

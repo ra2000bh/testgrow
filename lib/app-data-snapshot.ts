@@ -19,6 +19,8 @@ export type SnapshotUserPayload = {
   investments: EnrichedInvestment[];
   seedBalance?: number;
   seedBonusPercent?: number;
+  leaderboardRank?: number | null;
+  leaderboardBonusPercent?: number;
 };
 
 let lastUser: SnapshotUserPayload | null = null;

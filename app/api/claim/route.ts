@@ -16,6 +16,7 @@ import {
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 import { SEED_ASSET_CODE } from "@/lib/companies";
+import { resolveLeaderboardRank, updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getSeedIssuer } from "@/lib/seed";
 
 const schema = z.object({
@@ -95,6 +96,11 @@ export async function POST(request: NextRequest) {
       issuedAssetBalanceFromAccount(horizonAccount, SEED_ASSET_CODE, seedIssuer),
     );
 
+    await updateUserChainGrowBalance(user, chainGrowBalance);
+    await user.save();
+
+    const { rank: leaderboardRank } = await resolveLeaderboardRank(telegramId);
+
     const investments = user.investments as Investment[];
     const list = investments.filter((inv) =>
       body.claimAll ? true : inv.companyId === body.companyId,
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
     const payouts: { inv: Investment; pending: number; batchesClaimed: number }[] = [];
     for (const inv of list) {
       const batchesClaimed = computeBatchesReady(inv);
-      const pending = computePendingReward(inv, seedBalance);
+      const pending = computePendingReward(inv, seedBalance, leaderboardRank);
       if (pending > 0) payouts.push({ inv, pending, batchesClaimed });
     }
 

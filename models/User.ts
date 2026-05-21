@@ -31,7 +31,12 @@ const UserSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String, required: true },
     verificationExpiry: { type: Date, required: true },
+    telegramUsername: { type: String, required: false },
+    telegramFirstName: { type: String, required: false },
+    telegramPhotoUrl: { type: String, required: false },
     growBalance: { type: Number, default: 1000 },
+    chainGrowBalance: { type: Number, default: 0 },
+    chainGrowBalanceUpdatedAt: { type: Date, required: false },
     totalInvested: { type: Number, default: 0 },
     lastBalanceSyncAt: { type: Date, required: false },
     investments: { type: [InvestmentSchema], default: [] },
@@ -39,6 +44,8 @@ const UserSchema = new Schema(
   },
   { timestamps: true },
 );
+
+UserSchema.index({ isVerified: 1, chainGrowBalance: -1 });
 
 export type Investment = {
   companyId: string;
@@ -61,11 +68,18 @@ export type UserDoc = {
   isVerified: boolean;
   verificationCode: string;
   verificationExpiry: Date;
+  telegramUsername?: string;
+  telegramFirstName?: string;
+  telegramPhotoUrl?: string;
   growBalance: number;
+  chainGrowBalance: number;
+  chainGrowBalanceUpdatedAt?: Date;
   totalInvested: number;
   lastBalanceSyncAt?: Date;
   investments: Investment[];
   trustlines: { companyId: string; confirmed: boolean; lastCheckedAt?: Date }[];
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 export const User = models.User || model("User", UserSchema);

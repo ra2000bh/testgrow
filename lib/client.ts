@@ -12,6 +12,30 @@ export function getTelegramId() {
   return localStorage.getItem("stellargrow_telegram_id") || "";
 }
 
+export async function syncTelegramProfile() {
+  if (typeof window === "undefined") return;
+  const tgUser = getTelegramUser();
+  const tg = (
+    window as unknown as {
+      Telegram?: { WebApp?: { initData?: string } };
+    }
+  ).Telegram?.WebApp;
+  const initData = tg?.initData?.trim() || "";
+  if (!initData && !tgUser) return;
+  await fetch("/api/user/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      initData: initData || undefined,
+      username: tgUser?.username,
+      firstName: tgUser?.first_name,
+      photoUrl: tgUser?.photo_url,
+    }),
+  }).catch(() => {
+    /* ignore */
+  });
+}
+
 export async function syncSessionCookie() {
   if (typeof window === "undefined") return;
   const tg = (
@@ -30,6 +54,7 @@ export async function syncSessionCookie() {
       telegramId: fallbackTelegramId || undefined,
     }),
   });
+  await syncTelegramProfile();
 }
 
 const SESSION_UPDATE_EVENT = "stellargrow:session-update";

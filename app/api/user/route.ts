@@ -12,6 +12,7 @@ import {
 } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 import { SEED_ASSET_CODE } from "@/lib/companies";
+import { resolveLeaderboardRank, updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getSeedIssuer, seedBonusPercent, seedRewardMultiplier } from "@/lib/seed";
 
 export async function GET(request: NextRequest) {
@@ -52,6 +53,8 @@ export async function GET(request: NextRequest) {
         );
       }
       primeGrowBalanceCache(user.publicKey, chainGrowBalance);
+      await updateUserChainGrowBalance(user, chainGrowBalance);
+      await user.save();
     }
     const effectiveChainBalance = chainGrowBalance ?? (Number(user.growBalance) || 0);
     const investableGrowBalance = Math.max(0, effectiveChainBalance - totalInvested);
@@ -78,6 +81,9 @@ export async function GET(request: NextRequest) {
         walletAssetBalances.set(key, Math.max(0, n));
       }
     }
+    const { rank: leaderboardRank, bonusPercent: leaderboardBonusPercent } =
+      user.isVerified ? await resolveLeaderboardRank(telegramId) : { rank: null, bonusPercent: 0 };
+
     if (!rewardsEligible) {
       const now = new Date();
       for (const investment of userInvestments) {
@@ -93,8 +99,12 @@ export async function GET(request: NextRequest) {
       const pausedReason = rewardsEligible ? null : "Tokens were transferred out - rewards paused";
       return {
         ...baseInvestment,
-        accumulatedReward: rewardsEligible ? computePendingReward(investment, seedBalance) : 0,
-        ratePerMinute: rewardsEligible ? computeRewardRatePerMinute(investment, seedBalance) : 0,
+        accumulatedReward: rewardsEligible
+          ? computePendingReward(investment, seedBalance, leaderboardRank)
+          : 0,
+        ratePerMinute: rewardsEligible
+          ? computeRewardRatePerMinute(investment, seedBalance, leaderboardRank)
+          : 0,
         walletAssetBalance: walletAssetBalances.get(`${investment.assetCode}:${investment.issuer}`) ?? 0,
         rewardsEligible,
         pausedReason,
@@ -119,6 +129,8 @@ export async function GET(request: NextRequest) {
         seedBalance,
         seedBonusPercent: seedBonusPercent(seedBalance),
         seedRewardMultiplier: seedRewardMultiplier(seedBalance),
+        leaderboardRank,
+        leaderboardBonusPercent,
       },
       { headers: CACHE_PRIVATE_NO_STORE },
     );

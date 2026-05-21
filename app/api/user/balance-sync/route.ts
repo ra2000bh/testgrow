@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
+import { updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getWalletGrowBalance, invalidateStellarAccountCache } from "@/lib/stellar";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     user.lastBalanceSyncAt = new Date();
+    await updateUserChainGrowBalance(user, chainGrowBalance);
     await user.save();
 
     return NextResponse.json(

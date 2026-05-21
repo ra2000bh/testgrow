@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { getCompanyById } from "@/lib/companies";
 import { User } from "@/models/User";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
+import { updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getWalletGrowBalance, invalidateStellarAccountCache } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await updateUserChainGrowBalance(user, chainGrowBalance);
     await user.save();
     invalidateStellarAccountCache(user.publicKey);
     return NextResponse.json(

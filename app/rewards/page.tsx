@@ -15,6 +15,7 @@ import Link from "next/link";
 import { Building2, Download } from "lucide-react";
 import { getSnapshotRewardInvestments, getSnapshotUser } from "@/lib/app-data-snapshot";
 import { fetchApiUserCloned } from "@/lib/fetch-api-user";
+import { LeaderboardRewardsPane } from "@/components/LeaderboardRewardsPane";
 import { SeedRewardsPane } from "@/components/SeedRewardsPane";
 import type { Investment } from "@/models/User";
 
@@ -71,6 +72,12 @@ export default function RewardsPage() {
   const [seedBonusPercent, setSeedBonusPercent] = useState(
     snapSeed?.seedBonusPercent ?? snapSeed?.seedBalance ?? 0,
   );
+  const [leaderboardRank, setLeaderboardRank] = useState<number | null>(
+    snapSeed?.leaderboardRank ?? null,
+  );
+  const [leaderboardBonusPercent, setLeaderboardBonusPercent] = useState(
+    snapSeed?.leaderboardBonusPercent ?? 0,
+  );
   const [claiming, setClaiming] = useState<"all" | string | null>(null);
   const [toast, setToast] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [clock, setClock] = useState(0);
@@ -110,6 +117,9 @@ export default function RewardsPage() {
         setRows(inv.filter((i) => i.tokensInvested > 0));
         setSeedBalance(Number(data.seedBalance) || 0);
         setSeedBonusPercent(Number(data.seedBonusPercent ?? data.seedBalance) || 0);
+        const rank = data.leaderboardRank;
+        setLeaderboardRank(rank != null && rank >= 1 && rank <= 10 ? Number(rank) : null);
+        setLeaderboardBonusPercent(Number(data.leaderboardBonusPercent) || 0);
       });
   };
 
@@ -135,7 +145,7 @@ export default function RewardsPage() {
   const pendingForRow = (r: Row) => {
     void clock;
     if (r.rewardsEligible === false) return 0;
-    const computed = computeBatchProgress(r, seedBalance).totalPending;
+    const computed = computeBatchProgress(r, seedBalance, leaderboardRank).totalPending;
     return Math.max(0, Math.max(r.accumulatedReward, computed));
   };
 
@@ -206,7 +216,7 @@ export default function RewardsPage() {
       <div ref={listRef} className="space-y-3">
         {rows.map((inv) => {
           const company = companies.find((c) => c.id === inv.companyId);
-          const meta = computeBatchProgress(inv, seedBalance);
+          const meta = computeBatchProgress(inv, seedBalance, leaderboardRank);
           const pending = pendingForRow(inv);
           const canClaim = pending > 0 && inv.rewardsEligible !== false && meta.batchesReady > 0;
           const busy = claiming === inv.companyId;
@@ -256,6 +266,11 @@ export default function RewardsPage() {
         })}
       </div>
 
+      <LeaderboardRewardsPane
+        leaderboardRank={leaderboardRank}
+        leaderboardBonusPercent={leaderboardBonusPercent}
+      />
+
       {rows.length > 0 ? (
         <SeedRewardsPane
           seedBalance={seedBalance}
@@ -278,7 +293,7 @@ export default function RewardsPage() {
             block
             disabled={
               totalPending <= 0 ||
-              rows.every((r) => computeBatchProgress(r, seedBalance).batchesReady === 0) ||
+              rows.every((r) => computeBatchProgress(r, seedBalance, leaderboardRank).batchesReady === 0) ||
               Boolean(claiming)
             }
             onClick={() => claim()}

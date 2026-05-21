@@ -226,17 +226,21 @@ export default function DashboardPage() {
 
   const seedBalance = user?.seedBalance ?? 0;
   const seedBonusPercent = user?.seedBonusPercent ?? seedBalance;
+  const leaderboardRank =
+    user?.leaderboardRank != null && user.leaderboardRank >= 1 && user.leaderboardRank <= 10
+      ? user.leaderboardRank
+      : null;
 
   const pendingByCompanyId = useMemo(() => {
     void clock;
     if (!user) return {};
     const map: Record<string, number> = {};
     for (const inv of user.investments) {
-      const computed = computeBatchProgress(inv, seedBalance).totalPending;
+      const computed = computeBatchProgress(inv, seedBalance, leaderboardRank).totalPending;
       map[inv.companyId] = Math.max(0, Math.max(inv.accumulatedReward, computed));
     }
     return map;
-  }, [user, clock, seedBalance]);
+  }, [user, clock, seedBalance, leaderboardRank]);
 
   const pricesBySymbol = useMemo(() => {
     if (!market?.tokens) return {} as Record<string, number>;
@@ -319,7 +323,7 @@ export default function DashboardPage() {
         ? `Best performer: ${best.reduce((a, b) => (b.rate > a.rate ? b : a)).name} (${best.reduce((a, b) => (b.rate > a.rate ? b : a)).rate.toFixed(2)}% / day on staked GROW).`
         : "Stake with a company to see performance insights.";
 
-    const msList = active.map((i) => computeBatchProgress(i).msUntilNextBatch);
+    const msList = active.map((i) => computeBatchProgress(i, seedBalance, leaderboardRank).msUntilNextBatch);
     const ms = msList.length ? Math.min(...msList) : 0;
     const accrualLine =
       active.length > 0
@@ -575,6 +579,7 @@ export default function DashboardPage() {
           investments={user.investments}
           pendingByCompanyId={pendingByCompanyId}
           seedBalance={seedBalance}
+          leaderboardRank={leaderboardRank}
           claimingId={claimingId}
           onClaimOne={onClaimOne}
           onClaimAll={onClaimAll}
