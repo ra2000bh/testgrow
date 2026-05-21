@@ -33,12 +33,11 @@ export function LeaderboardRewardsPane({
             <>
               <p className="sg-text-sm font-medium text-[var(--text-secondary)]">Leaderboard bonus</p>
               <p className="sg-text-md font-semibold text-[var(--text-primary)]">
-                You are #{leaderboardRank} on the leaderboard —{" "}
-                <span className="font-semibold text-[#f5c542]">+{bonus}%</span> on rewards from your invested
-                GROW
+                You are #{leaderboardRank} on the leaderboard -{" "}
+                <span className="font-semibold text-[#f5c542]">+{bonus}%</span> on rewards from your invested GROW
               </p>
               <p className="sg-text-sm text-[var(--text-muted)]">
-                Stacks with your SEED bonus (same additive formula). Rank updates when balances change.
+                Extra % applies to rewards from GROW you have invested. Your rank can move as balances change.
               </p>
             </>
           ) : (

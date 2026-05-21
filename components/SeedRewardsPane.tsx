@@ -114,7 +114,7 @@ function SeedPaneContent({
       </p>
       <p className={compact ? "text-[13px] text-[var(--dash-muted)]" : "sg-text-sm text-[var(--text-secondary)]"}>
         Hold {SEED_ASSET_CODE} for +1% reward boost per token.
-        {compact ? " Add the bonus trustline on Trustlines." : " Add the bonus trustline on the Trustlines tab."}
+        {compact ? " Add the bonus trustline on Wallet." : " Add the bonus trustline from Wallet (Trustlines)."}
       </p>
     </>
   );

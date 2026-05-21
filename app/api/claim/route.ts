@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: `Add a trustline for ${inv.assetCode} in your Stellar wallet (Trustlines tab), then claim again.`,
+            message: `Add a trustline for ${inv.assetCode} in your Stellar wallet (Wallet - Trustlines), then claim again.`,
           },
           { status: 400, headers: CACHE_PRIVATE_NO_STORE },
         );

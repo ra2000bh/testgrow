@@ -16,7 +16,7 @@ import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { DashboardAllocationBar } from "@/components/dashboard/DashboardAllocationBar";
 import { DashboardInsights } from "@/components/dashboard/DashboardInsights";
 import { DashboardRewardsPanel } from "@/components/dashboard/DashboardRewardsPanel";
-import { SeedRewardsPane } from "@/components/SeedRewardsPane";
+import { DashboardBonusesPane } from "@/components/DashboardBonusesPane";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardTickerStrip } from "@/components/dashboard/DashboardTickerStrip";
 import { companies, GROW_ASSET_CODE } from "@/lib/companies";
@@ -230,6 +230,7 @@ export default function DashboardPage() {
     user?.leaderboardRank != null && user.leaderboardRank >= 1 && user.leaderboardRank <= 10
       ? user.leaderboardRank
       : null;
+  const leaderboardBonusPercent = user?.leaderboardBonusPercent ?? 0;
 
   const pendingByCompanyId = useMemo(() => {
     void clock;
@@ -569,10 +570,11 @@ export default function DashboardPage() {
           </section>
         </div>
 
-        <SeedRewardsPane
+        <DashboardBonusesPane
           seedBalance={seedBalance}
           seedBonusPercent={seedBonusPercent}
-          variant="dashboard"
+          leaderboardRank={leaderboardRank}
+          leaderboardBonusPercent={leaderboardBonusPercent}
         />
 
         <DashboardRewardsPanel

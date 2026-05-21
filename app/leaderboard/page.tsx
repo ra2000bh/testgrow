@@ -67,11 +67,31 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        <Card className="space-y-2 border-[var(--border)]" data-page-child>
-          <p className="sg-text-xs text-[var(--text-secondary)] leading-relaxed">
-            #1 +50% · #2 +40% · #3 +30% · #4–10 +10% on invested GROW rewards (stacks with SEED). Names are
-            masked for privacy.
-          </p>
+        <Card className="space-y-2 border-[var(--border)] bg-[rgba(245,197,66,0.04)]" data-page-child>
+          <p className="sg-text-xs font-medium text-[var(--text-secondary)]">Rank rewards on invested GROW</p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sg-text-sm text-[var(--text-primary)]">
+            <span>
+              <span className="font-semibold text-[#f5c542]">#1</span> +50%
+            </span>
+            <span className="text-[var(--text-muted)]" aria-hidden>
+              ·
+            </span>
+            <span>
+              <span className="font-semibold">#2</span> +40%
+            </span>
+            <span className="text-[var(--text-muted)]" aria-hidden>
+              ·
+            </span>
+            <span>
+              <span className="font-semibold">#3</span> +30%
+            </span>
+            <span className="text-[var(--text-muted)]" aria-hidden>
+              ·
+            </span>
+            <span>
+              <span className="font-semibold">#4-10</span> +10%
+            </span>
+          </div>
         </Card>
 
         {loading ? (
@@ -112,7 +132,7 @@ export default function LeaderboardPage() {
 
             {onBoard && viewer ? (
               <p className="sg-text-sm text-[var(--primary-green)] px-0.5 font-medium" data-page-child>
-                You are #{viewer.rank} — +{viewer.bonusPercent}% reward bonus active
+                You are #{viewer.rank} - +{viewer.bonusPercent}% reward bonus active
               </p>
             ) : null}
           </>

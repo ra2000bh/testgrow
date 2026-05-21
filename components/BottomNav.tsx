@@ -2,15 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Building2, Gift, Link2, Wallet, Trophy } from "lucide-react";
+import { LayoutDashboard, Building2, Gift, Wallet } from "lucide-react";
 import { animateTabIconActive } from "@/lib/animations";
 
 const NAV = [
   { href: "/dashboard", label: "Home", Icon: LayoutDashboard },
   { href: "/companies", label: "Invest", Icon: Building2 },
   { href: "/rewards", label: "Rewards", Icon: Gift },
-  { href: "/leaderboard", label: "Leaders", Icon: Trophy },
-  { href: "/trustlines", label: "Trust", Icon: Link2 },
   { href: "/wallet", label: "Wallet", Icon: Wallet },
 ] as const;
 
@@ -76,7 +74,7 @@ export function BottomNav({ verified }: { verified: boolean }) {
               />
             </span>
             <span
-              className={`max-w-full truncate sg-text-[10px] font-medium leading-tight ${
+              className={`max-w-full truncate sg-text-xs font-medium leading-tight ${
                 active ? "text-[var(--primary-green)]" : "text-[var(--text-muted)]"
               }`}
             >

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
-import { Check, Clock, Copy, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Check, Clock, Copy, Link2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -415,6 +415,17 @@ export default function WalletPage() {
           </p>
           <Button type="button" variant="secondary" block onClick={() => setChangeAddressMode(true)}>
             Link a different Stellar address
+          </Button>
+        </Card>
+
+        <Card className="space-y-3 border-[var(--border)]" data-page-child>
+          <p className="sg-text-sm font-medium text-[var(--text-primary)]">Trustlines</p>
+          <p className="sg-text-sm text-[var(--text-secondary)]">
+            Add Stellar trustlines for reward tokens and the SEED bonus before you invest or claim.
+          </p>
+          <Button type="button" variant="primary" block onClick={() => router.push("/trustlines")}>
+            <Link2 size={16} aria-hidden />
+            <span>Trustlines</span>
           </Button>
         </Card>
 
