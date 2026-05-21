@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { createSignedSessionCookie, getSessionCookieName } from "@/lib/auth-session";
+import { connectToDatabase } from "@/lib/mongodb";
+import { User } from "@/models/User";
+import { applyTelegramProfileToUser, parseTelegramUserFromInitData } from "@/lib/telegram-profile";
 import { getTelegramIdFromInitData, verifyTelegramInitData } from "@/lib/telegram-auth";
 
 const schema = z.object({
@@ -39,6 +42,18 @@ export async function POST(request: NextRequest) {
         { success: false, message: "Missing Telegram user id." },
         { status: 400, headers: CACHE_PRIVATE_NO_STORE },
       );
+    }
+
+    if (initData && botToken) {
+      const parsed = parseTelegramUserFromInitData(initData);
+      if (parsed && parsed.id === telegramId) {
+        await connectToDatabase();
+        const user = await User.findOne({ telegramId });
+        if (user) {
+          applyTelegramProfileToUser(user, parsed);
+          await user.save();
+        }
+      }
     }
 
     const session = createSignedSessionCookie(telegramId);

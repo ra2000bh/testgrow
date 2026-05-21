@@ -6,6 +6,7 @@ import {
   getRankForTelegramId,
   leaderboardBonusPercent,
   maskDisplayName,
+  resolveDisplayName,
   sortLeaderboardCandidates,
   type LeaderboardCandidate,
 } from "./leaderboard";
@@ -24,6 +25,18 @@ describe("maskDisplayName", () => {
   it("handles empty", () => {
     assert.equal(maskDisplayName(""), "•••");
     assert.equal(maskDisplayName("  "), "•••");
+  });
+});
+
+describe("resolveDisplayName", () => {
+  it("prefers username then first name", () => {
+    assert.equal(resolveDisplayName({ telegramUsername: "alice_b" }), "alice_b");
+    assert.equal(resolveDisplayName({ telegramFirstName: "Bob" }), "Bob");
+  });
+
+  it("uses telegramId instead of Player when profile missing", () => {
+    assert.equal(resolveDisplayName({ telegramId: "482910384" }), "482910384");
+    assert.notEqual(maskDisplayName(resolveDisplayName({ telegramId: "482910384" })), "P•••r");
   });
 });
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { connectToDatabase } from "@/lib/mongodb";
-import { parseTelegramUserFromInitData } from "@/lib/telegram-profile";
+import { applyTelegramProfileToUser, parseTelegramUserFromInitData } from "@/lib/telegram-profile";
 import { verifyTelegramInitData, getTelegramIdFromInitData } from "@/lib/telegram-auth";
 import { User } from "@/models/User";
 
@@ -62,9 +62,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (username) user.telegramUsername = username;
-    if (firstName) user.telegramFirstName = firstName;
-    if (photoUrl) user.telegramPhotoUrl = photoUrl;
+    applyTelegramProfileToUser(user, {
+      username,
+      firstName,
+      photoUrl,
+    });
     await user.save();
 
     return NextResponse.json({ success: true }, { headers: CACHE_PRIVATE_NO_STORE });

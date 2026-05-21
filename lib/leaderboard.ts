@@ -53,12 +53,15 @@ export function maskDisplayName(name: string): string {
   return `${n[0]}•••${n[n.length - 1]}`;
 }
 
-export function resolveDisplayName(user: LeaderboardProfileFields): string {
+export function resolveDisplayName(user: LeaderboardProfileFields & { telegramId?: string }): string {
   const username = user.telegramUsername?.trim();
   if (username) return username;
   const first = user.telegramFirstName?.trim();
   if (first) return first;
-  return "Player";
+  // Unique per user when profile was never synced (masking "Player" always yields P•••r).
+  const id = user.telegramId?.trim();
+  if (id && id.length >= 3) return id;
+  return "anon";
 }
 
 export function combinedRewardMultiplier(seedBalance: number, leaderboardRank: number | null | undefined): number {

@@ -5,6 +5,22 @@ export type ParsedTelegramProfile = {
   photoUrl?: string;
 };
 
+type UserProfileFields = {
+  telegramUsername?: string;
+  telegramFirstName?: string;
+  telegramPhotoUrl?: string;
+};
+
+/** Apply parsed Telegram fields onto a Mongoose user document (only non-empty values). */
+export function applyTelegramProfileToUser(
+  user: UserProfileFields,
+  profile: Pick<ParsedTelegramProfile, "username" | "firstName" | "photoUrl">,
+): void {
+  if (profile.username) user.telegramUsername = profile.username;
+  if (profile.firstName) user.telegramFirstName = profile.firstName;
+  if (profile.photoUrl) user.telegramPhotoUrl = profile.photoUrl;
+}
+
 export function parseTelegramUserFromInitData(initData: string): ParsedTelegramProfile | null {
   try {
     const params = new URLSearchParams(initData);
