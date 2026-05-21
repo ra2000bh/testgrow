@@ -2,13 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Building2, Gift, Wallet } from "lucide-react";
+import { LayoutDashboard, Building2, Gift, Wallet, Trophy } from "lucide-react";
 import { animateTabIconActive } from "@/lib/animations";
 
 const NAV = [
   { href: "/dashboard", label: "Home", Icon: LayoutDashboard },
   { href: "/companies", label: "Invest", Icon: Building2 },
   { href: "/rewards", label: "Rewards", Icon: Gift },
+  { href: "/leaderboard", label: "Leaders", Icon: Trophy },
   { href: "/wallet", label: "Wallet", Icon: Wallet },
 ] as const;
 
