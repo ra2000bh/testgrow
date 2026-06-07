@@ -186,8 +186,8 @@ export default function RewardsPage() {
         <Card className="space-y-3 border-[var(--border)]" data-page-child>
           <h2 className="sg-text-md font-semibold text-[var(--text-primary)]">No rewards yet</h2>
           <p className="sg-text-sm leading-[var(--text-sm-leading)] text-[var(--text-secondary)]">
-            Allocate app GROW on the Companies tab first. Each company pays rewards in its own token (HOLAH,
-            KITET, …) at the published rate per GROW staked. Accruals stack each interval — claim here to receive
+            Allocate app GROW on the Companies tab first. Each company pays rewards in its own token (GYG,
+            SEEK, COSTCO, …) at the published rate per GROW staked. Accruals stack each interval — claim here to receive
             tokens in your Stellar wallet (trustlines required).
           </p>
           <Link href="/companies" className="block">

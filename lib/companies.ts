@@ -205,6 +205,34 @@ export const companies: CompanyConfig[] = [
     brandColorFrom: "#fb923c",
     brandColorTo: "#ea580c",
   },
+  {
+    id: "company-13",
+    name: "SEEK",
+    country: "AU",
+    industry: "Online employment marketplace",
+    description:
+      "Australia's leading jobs platform connecting employers and candidates through digital hiring tools, marketplace scale, and recurring recruitment demand.",
+    estimatedPriceUsd: 1.44,
+    dailyRate: 0.37,
+    assetCode: "SEEK",
+    issuer,
+    brandColorFrom: "#0ea5e9",
+    brandColorTo: "#0369a1",
+  },
+  {
+    id: "company-14",
+    name: "Costco",
+    country: "US",
+    industry: "Membership warehouse retail",
+    description:
+      "Membership-based wholesale club with high-volume retail formats, strong member renewal rates, and recurring subscription revenue from annual fees.",
+    estimatedPriceUsd: 1.55,
+    dailyRate: 0.42,
+    assetCode: "COSTCO",
+    issuer,
+    brandColorFrom: "#dc2626",
+    brandColorTo: "#991b1b",
+  },
 ];
 
 export function getCompanyById(companyId: string) {
