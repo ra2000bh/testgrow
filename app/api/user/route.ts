@@ -11,7 +11,7 @@ import {
   primeGrowBalanceCache,
 } from "@/lib/stellar";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
-import { SEED_ASSET_CODE } from "@/lib/companies";
+import { SEED_ASSET_CODE, syncInvestmentAssetCodes } from "@/lib/companies";
 import { resolveLeaderboardRank, updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getSeedIssuer, seedBonusPercent, seedRewardMultiplier } from "@/lib/seed";
 
@@ -31,6 +31,10 @@ export async function GET(request: NextRequest) {
         { message: "User not found." },
         { status: 404, headers: CACHE_PRIVATE_NO_STORE },
       );
+    }
+
+    if (syncInvestmentAssetCodes(user.investments)) {
+      await user.save();
     }
 
     const totalInvested = Number(user.totalInvested) || 0;

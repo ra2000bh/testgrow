@@ -15,7 +15,7 @@ import {
 } from "@/lib/stellar";
 import { CACHE_PRIVATE_NO_STORE } from "@/lib/http-cache";
 import { readTelegramIdFromSession } from "@/lib/auth-session";
-import { SEED_ASSET_CODE } from "@/lib/companies";
+import { SEED_ASSET_CODE, syncInvestmentAssetCodes } from "@/lib/companies";
 import { resolveLeaderboardRank, updateUserChainGrowBalance } from "@/lib/leaderboard-balance";
 import { getSeedIssuer } from "@/lib/seed";
 
@@ -65,6 +65,9 @@ export async function POST(request: NextRequest) {
         { success: false, message: "Wallet not verified" },
         { status: 403, headers: CACHE_PRIVATE_NO_STORE },
       );
+    }
+    if (syncInvestmentAssetCodes(user.investments)) {
+      await user.save();
     }
     let horizonAccount;
     try {

@@ -214,7 +214,7 @@ export const companies: CompanyConfig[] = [
       "Australia's leading jobs platform connecting employers and candidates through digital hiring tools, marketplace scale, and recurring recruitment demand.",
     estimatedPriceUsd: 1.44,
     dailyRate: 0.37,
-    assetCode: "SEEK",
+    assetCode: "SEEKAU",
     issuer,
     brandColorFrom: "#0ea5e9",
     brandColorTo: "#0369a1",
@@ -237,4 +237,22 @@ export const companies: CompanyConfig[] = [
 
 export function getCompanyById(companyId: string) {
   return companies.find((company) => company.id === companyId);
+}
+
+/** Canonical on-chain asset code; falls back to stored value for legacy rows. */
+export function resolveCompanyAssetCode(companyId: string, storedAssetCode?: string): string {
+  return getCompanyById(companyId)?.assetCode ?? storedAssetCode ?? "";
+}
+
+/** Align stored investment asset codes with the current company registry (e.g. SEEK → SEEKAU). */
+export function syncInvestmentAssetCodes(investments: { companyId: string; assetCode: string }[]): boolean {
+  let changed = false;
+  for (const inv of investments) {
+    const canonical = getCompanyById(inv.companyId)?.assetCode;
+    if (canonical && inv.assetCode !== canonical) {
+      inv.assetCode = canonical;
+      changed = true;
+    }
+  }
+  return changed;
 }
